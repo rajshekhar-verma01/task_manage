@@ -34,6 +34,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
     classFromTime: '',
     classToTime: '',
     startDate: '',
+    endDate: '',
     recurrenceValue: 1,
     recurrenceUnit: 'days' as 'minutes' | 'hours' | 'days' | 'weeks' | 'months',
   });
@@ -75,6 +76,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         classFromTime: '',
         classToTime: '',
         startDate: '',
+        endDate: '',
         recurrenceValue: 1,
         recurrenceUnit: 'days',
       });
@@ -121,6 +123,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
         createdAt: task?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         startDate: formData.startDate,
+        endDate: formData.endDate || undefined,
         recurrenceValue: formData.recurrenceValue,
         recurrenceUnit: formData.recurrenceUnit,
         nextOccurrence: nextOccurrence.toISOString().split('T')[0],
@@ -307,6 +310,21 @@ const TaskModal: React.FC<TaskModalProps> = ({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date (Optional)
+                </label>
+                <input
+                  type="date"
+                  value={formData.endDate}
+                  onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-sm text-gray-500 mt-1">
+                  Leave empty for indefinite recurrence
+                </p>
               </div>
               
               <div>

@@ -9,6 +9,7 @@ function App() {
   const { 
     tasks, 
     updateTask, 
+    updateRecurringTask,
     updateTaskStatus, 
     updateSubGoalStatus,
     addCategory,

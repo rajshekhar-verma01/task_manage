@@ -13,7 +13,7 @@ interface TaskSectionProps {
   recurringTasks: RecurringTask[];
   categories: string[];
   onTaskUpdate: (task: Task | PersonalDevelopmentTask) => void;
-  onRecurringTaskUpdate?: (task: RecurringTask) => void;
+  onRecurringTaskUpdate: (task: RecurringTask) => void;
   onTaskStatusChange: (taskId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onSubGoalStatusChange: (taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onAddCategory: (category: string) => void;
@@ -44,16 +44,27 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     dueDateRange: 'all',
   });
   const [editingTask, setEditingTask] = useState<Task | PersonalDevelopmentTask | undefined>();
+  const [editingRecurringTask, setEditingRecurringTask] = useState<RecurringTask | undefined>();
   const [taskType, setTaskType] = useState<'general' | 'recurring'>('general');
 
   const handleEditTask = (task: Task | PersonalDevelopmentTask) => {
     setEditingTask(task);
+    setEditingRecurringTask(undefined);
+    setTaskType('general');
+    setIsModalOpen(true);
+  };
+
+  const handleEditRecurringTask = (task: RecurringTask) => {
+    setEditingRecurringTask(task);
+    setEditingTask(undefined);
+    setTaskType('recurring');
     setIsModalOpen(true);
   };
 
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingTask(undefined);
+    setEditingRecurringTask(undefined);
     setTaskType('general');
   };
 
@@ -105,21 +116,23 @@ const TaskSection: React.FC<TaskSectionProps> = ({
 
   const getUpcomingTasks = () => {
     const now = new Date();
-    const upcoming: (Task | RecurringTask | SubGoal)[] = [];
+    const upcomingGeneral: (Task | SubGoal)[] = [];
+    const upcomingRecurring: RecurringTask[] = [];
     
     // Add upcoming general tasks
     const upcomingTasks = tasks.filter(task => {
       const dueDate = new Date(task.dueDate);
       return dueDate > now && task.status !== 'completed';
     });
-    upcoming.push(...upcomingTasks);
+    upcomingGeneral.push(...upcomingTasks);
     
     // Add upcoming recurring tasks
     const upcomingRecurring = recurringTasks.filter(task => {
       const nextDate = new Date(task.nextOccurrence);
-      return nextDate > now && task.status !== 'completed';
+      const endDate = task.endDate ? new Date(task.endDate) : null;
+      return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
     });
-    upcoming.push(...upcomingRecurring);
+    upcomingRecurring.push(...upcomingRecurringTasks);
     
     // Add upcoming sub goals from personal development tasks
     if (sectionType === 'personal') {
@@ -129,7 +142,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           personalTask.subGoals.forEach(subGoal => {
             const dueDate = new Date(subGoal.dueDate);
             if (dueDate > now && subGoal.status !== 'completed') {
-              upcoming.push({
+              upcomingGeneral.push({
                 ...subGoal,
                 title: `${task.title} - ${subGoal.title}`,
                 parentTaskId: task.id,
@@ -140,11 +153,20 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       });
     }
     
-    return upcoming.sort((a, b) => {
-      const dateA = new Date(a.dueDate || (a as RecurringTask).nextOccurrence);
-      const dateB = new Date(b.dueDate || (b as RecurringTask).nextOccurrence);
+    // Sort both arrays
+    upcomingGeneral.sort((a, b) => {
+      const dateA = new Date(a.dueDate);
+      const dateB = new Date(b.dueDate);
       return dateA.getTime() - dateB.getTime();
     });
+    
+    upcomingRecurring.sort((a, b) => {
+      const dateA = new Date(a.nextOccurrence);
+      const dateB = new Date(b.nextOccurrence);
+      return dateA.getTime() - dateB.getTime();
+    });
+    
+    return { general: upcomingGeneral, recurring: upcomingRecurring };
   };
 
   const getFilteredTasks = () => {
@@ -154,7 +176,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       case 'recurring':
         return applyFilters(recurringTasks);
       case 'upcoming':
-        return getUpcomingTasks();
+        return getUpcomingTasks(); // This now returns an object with general and recurring
       default:
         return [];
     }
@@ -166,38 +188,103 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     { id: 'upcoming', name: 'Upcoming Tasks', icon: Clock },
   ];
 
-  const renderUpcomingItem = (item: any) => {
-    if (item.parentTaskId) {
-      // This is a sub goal
-      return (
-        <div key={`${item.parentTaskId}-${item.id}`} className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span className="text-xs text-blue-600 font-medium">SUB GOAL</span>
-          </div>
-          <h3 className="font-semibold text-gray-800 mb-1">{item.title}</h3>
-          <p className="text-gray-600 text-sm mb-2">{item.description}</p>
-          <div className="flex items-center space-x-2 text-xs text-gray-500">
-            <Calendar className="w-3 h-3" />
-            <span>{new Date(item.dueDate).toLocaleDateString()}</span>
-            <span>•</span>
-            <span>{item.category}</span>
-          </div>
+  const renderUpcomingContent = () => {
+    const upcomingData = getUpcomingTasks();
+    
+    return (
+      <div className="space-y-8">
+        {/* General Tasks Section */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <Calendar className="w-5 h-5 mr-2 text-blue-500" />
+            Upcoming General Tasks ({upcomingData.general.length})
+          </h3>
+          {upcomingData.general.length > 0 ? (
+            viewMode === 'card' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {upcomingData.general.map((item) => (
+                  item.parentTaskId ? (
+                    <div key={`${item.parentTaskId}-${item.id}`} className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        <span className="text-xs text-blue-600 font-medium">SUB GOAL</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-800 mb-1">{item.title}</h3>
+                      <p className="text-gray-600 text-sm mb-2">{item.description}</p>
+                      <div className="flex items-center space-x-2 text-xs text-gray-500">
+                        <Calendar className="w-3 h-3" />
+                        <span>{new Date(item.dueDate).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{item.category}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <TaskCard
+                      key={item.id}
+                      task={item}
+                      onStatusChange={onTaskStatusChange}
+                      onSubGoalStatusChange={onSubGoalStatusChange}
+                      onEdit={handleEditTask}
+                      sectionType={sectionType}
+                    />
+                  )
+                ))}
+              </div>
+            ) : (
+              <TaskList
+                tasks={upcomingData.general}
+                onStatusChange={onTaskStatusChange}
+                onSubGoalStatusChange={onSubGoalStatusChange}
+                onEdit={handleEditTask}
+                sectionType={sectionType}
+                isUpcoming={true}
+              />
+            )
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <div className="text-gray-400 text-sm">No upcoming general tasks</div>
+            </div>
+          )}
         </div>
-      );
-    } else {
-      // This is a regular task
-      return (
-        <TaskCard
-          key={item.id}
-          task={item}
-          onStatusChange={onTaskStatusChange}
-          onSubGoalStatusChange={onSubGoalStatusChange}
-          onEdit={handleEditTask}
-          sectionType={sectionType}
-        />
-      );
-    }
+
+        {/* Recurring Tasks Section */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <Repeat className="w-5 h-5 mr-2 text-purple-500" />
+            Upcoming Recurring Tasks ({upcomingData.recurring.length})
+          </h3>
+          {upcomingData.recurring.length > 0 ? (
+            viewMode === 'card' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {upcomingData.recurring.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onStatusChange={onTaskStatusChange}
+                    onSubGoalStatusChange={onSubGoalStatusChange}
+                    onEdit={handleEditRecurringTask}
+                    sectionType={sectionType}
+                  />
+                ))}
+              </div>
+            ) : (
+              <TaskList
+                tasks={upcomingData.recurring}
+                onStatusChange={onTaskStatusChange}
+                onSubGoalStatusChange={onSubGoalStatusChange}
+                onEdit={handleEditRecurringTask}
+                sectionType={sectionType}
+                isUpcoming={true}
+              />
+            )
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">
+              <div className="text-gray-400 text-sm">No upcoming recurring tasks</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -353,33 +440,32 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       </div>
 
       {/* Tasks Display */}
-      {viewMode === 'card' ? (
+      {activeTab === 'upcoming' ? (
+        renderUpcomingContent()
+      ) : viewMode === 'card' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {activeTab !== 'upcoming' && getFilteredTasks().map((task) => (
+          {getFilteredTasks().map((task) => (
             <TaskCard
               key={task.id}
               task={task}
               onStatusChange={onTaskStatusChange}
               onSubGoalStatusChange={onSubGoalStatusChange}
-              onEdit={handleEditTask}
+              onEdit={activeTab === 'recurring' ? handleEditRecurringTask : handleEditTask}
               sectionType={sectionType}
             />
           ))}
-          
-          {activeTab === 'upcoming' && getUpcomingTasks().map((item) => renderUpcomingItem(item))}
         </div>
       ) : (
         <TaskList
-          tasks={activeTab !== 'upcoming' ? getFilteredTasks() : getUpcomingTasks()}
+          tasks={getFilteredTasks()}
           onStatusChange={onTaskStatusChange}
           onSubGoalStatusChange={onSubGoalStatusChange}
-          onEdit={handleEditTask}
+          onEdit={activeTab === 'recurring' ? handleEditRecurringTask : handleEditTask}
           sectionType={sectionType}
-          isUpcoming={activeTab === 'upcoming'}
         />
       )}
 
-      {getFilteredTasks().length === 0 && (
+      {activeTab !== 'upcoming' && getFilteredTasks().length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-400 text-lg mb-2">
             {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
@@ -399,8 +485,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       <TaskModal
         isOpen={isModalOpen}
         onClose={handleModalClose}
-        onSave={onTaskUpdate}
-        task={editingTask}
+        onSave={taskType === 'recurring' ? onRecurringTaskUpdate : onTaskUpdate}
+        task={editingTask || editingRecurringTask}
         sectionType={sectionType}
         categories={categories}
         onAddCategory={onAddCategory}

@@ -151,6 +151,36 @@ export const useTaskManager = () => {
     });
   };
 
+  const updateRecurringTask = (sectionId: string, task: RecurringTask) => {
+    if (dbService) {
+      try {
+        dbService.saveRecurringTask(task, sectionId);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error saving recurring task to database:', error);
+        updateRecurringTaskInMemory(sectionId, task);
+      }
+    } else {
+      updateRecurringTaskInMemory(sectionId, task);
+    }
+  };
+
+  const updateRecurringTaskInMemory = (sectionId: string, task: RecurringTask) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        [sectionId]: {
+          ...prev[sectionId as keyof TaskData],
+          recurringTasks: prev[sectionId as keyof TaskData].recurringTasks.some(t => t.id === task.id)
+            ? prev[sectionId as keyof TaskData].recurringTasks.map(t => t.id === task.id ? task : t)
+            : [...prev[sectionId as keyof TaskData].recurringTasks, task],
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
+
   const updateTaskStatus = (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
     if (dbService) {
       try {
@@ -341,6 +371,7 @@ export const useTaskManager = () => {
   return {
     tasks,
     updateTask,
+    updateRecurringTask,
     updateTaskStatus,
     updateSubGoalStatus,
     addCategory,

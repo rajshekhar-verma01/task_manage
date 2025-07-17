@@ -47,7 +47,9 @@ class DatabaseService {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         start_date TEXT NOT NULL,
-        recurrence_days INTEGER NOT NULL,
+        recurrence_value INTEGER NOT NULL,
+        recurrence_unit TEXT NOT NULL,
+        end_date TEXT,
         next_occurrence TEXT NOT NULL
       )
     `);
@@ -183,8 +185,8 @@ class DatabaseService {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO recurring_tasks (
         id, title, description, status, due_date, category, section_id,
-        created_at, updated_at, start_date, recurrence_days, next_occurrence
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        created_at, updated_at, start_date, end_date, recurrence_value, recurrence_unit, next_occurrence
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -198,7 +200,9 @@ class DatabaseService {
       task.createdAt,
       task.updatedAt,
       task.startDate,
-      task.recurrenceDays,
+      task.endDate || null,
+      task.recurrenceValue,
+      task.recurrenceUnit,
       task.nextOccurrence
     );
   }
@@ -219,7 +223,9 @@ class DatabaseService {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       startDate: row.start_date,
-      recurrenceDays: row.recurrence_days,
+      endDate: row.end_date,
+      recurrenceValue: row.recurrence_value,
+      recurrenceUnit: row.recurrence_unit,
       nextOccurrence: row.next_occurrence,
     }));
   }
