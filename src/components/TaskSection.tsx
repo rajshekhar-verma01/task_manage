@@ -117,7 +117,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const getUpcomingTasks = () => {
     const now = new Date();
     const upcomingGeneral: (Task | SubGoal)[] = [];
-    const upcomingRecurring: RecurringTask[] = [];
+    let upcomingRecurring: RecurringTask[] = [];
     
     // Add upcoming general tasks
     const upcomingTasks = tasks.filter(task => {
@@ -132,7 +132,6 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       const endDate = task.endDate ? new Date(task.endDate) : null;
       return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
     });
-    upcomingRecurring.push(...upcomingRecurringTasks);
     
     // Add upcoming sub goals from personal development tasks
     if (sectionType === 'personal') {
