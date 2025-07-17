@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, Repeat, Clock, Settings } from 'lucide-react';
+import { Plus, Calendar, Repeat, Clock, Settings, Filter, Grid, List } from 'lucide-react';
 import TaskCard from './TaskCard';
+import TaskList from './TaskList';
 import TaskModal from './TaskModal';
 import CategoryModal from './CategoryModal';
 import { Task, PersonalDevelopmentTask, RecurringTask, SubGoal } from '../types';
@@ -33,6 +34,13 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const [activeTab, setActiveTab] = useState('general');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [filters, setFilters] = useState({
+    status: 'all',
+    category: 'all',
+    dueDateRange: 'all',
+  });
   const [editingTask, setEditingTask] = useState<Task | PersonalDevelopmentTask | undefined>();
 
   const handleEditTask = (task: Task | PersonalDevelopmentTask) => {
@@ -43,6 +51,52 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingTask(undefined);
+  };
+
+  const applyFilters = (taskList: (Task | RecurringTask)[]) => {
+    return taskList.filter(task => {
+      // Status filter
+      if (filters.status !== 'all' && task.status !== filters.status) {
+        return false;
+      }
+
+      // Category filter
+      if (filters.category !== 'all' && task.category !== filters.category) {
+        return false;
+      }
+
+      // Due date filter
+      if (filters.dueDateRange !== 'all') {
+        const dueDate = new Date(task.dueDate);
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(today.getMonth() + 1);
+
+        switch (filters.dueDateRange) {
+          case 'overdue':
+            if (dueDate >= today) return false;
+            break;
+          case 'today':
+            if (dueDate.toDateString() !== today.toDateString()) return false;
+            break;
+          case 'tomorrow':
+            if (dueDate.toDateString() !== tomorrow.toDateString()) return false;
+            break;
+          case 'this-week':
+            if (dueDate < today || dueDate > nextWeek) return false;
+            break;
+          case 'this-month':
+            if (dueDate < today || dueDate > nextMonth) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
   };
 
   const getUpcomingTasks = () => {
@@ -87,6 +141,19 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       const dateB = new Date(b.dueDate || (b as RecurringTask).nextOccurrence);
       return dateA.getTime() - dateB.getTime();
     });
+  };
+
+  const getFilteredTasks = () => {
+    switch (activeTab) {
+      case 'general':
+        return applyFilters(tasks);
+      case 'recurring':
+        return applyFilters(recurringTasks);
+      case 'upcoming':
+        return getUpcomingTasks();
+      default:
+        return [];
+    }
   };
 
   const tabs = [
@@ -135,6 +202,35 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         <h1 className="text-2xl font-bold text-gray-800">{sectionName}</h1>
         <div className="flex space-x-2">
           <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+              showFilters ? 'bg-blue-500 text-white' : 'bg-gray-500 text-white hover:bg-gray-600'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+          </button>
+          <div className="flex bg-gray-200 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('card')}
+              className={`flex items-center space-x-1 px-3 py-1 rounded transition-colors ${
+                viewMode === 'card' ? 'bg-white shadow-sm' : 'hover:bg-gray-300'
+              }`}
+            >
+              <Grid className="w-4 h-4" />
+              <span className="text-sm">Cards</span>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center space-x-1 px-3 py-1 rounded transition-colors ${
+                viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-300'
+              }`}
+            >
+              <List className="w-4 h-4" />
+              <span className="text-sm">List</span>
+            </button>
+          </div>
+          <button
             onClick={() => setIsCategoryModalOpen(true)}
             className="flex items-center space-x-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
@@ -150,6 +246,68 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Filters Panel */}
+      {showFilters && (
+        <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="todo">Todo</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <select
+                value={filters.category}
+                onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
+              <select
+                value={filters.dueDateRange}
+                onChange={(e) => setFilters({ ...filters, dueDateRange: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Dates</option>
+                <option value="overdue">Overdue</option>
+                <option value="today">Today</option>
+                <option value="tomorrow">Tomorrow</option>
+                <option value="this-week">This Week</option>
+                <option value="this-month">This Month</option>
+              </select>
+            </div>
+          </div>
+          
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => setFilters({ status: 'all', category: 'all', dueDateRange: 'all' })}
+              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="border-b border-gray-200 mb-6">
         <nav className="flex space-x-8">
@@ -173,38 +331,47 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         </nav>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {activeTab === 'general' && tasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onStatusChange={onTaskStatusChange}
-            onSubGoalStatusChange={onSubGoalStatusChange}
-            onEdit={handleEditTask}
-            sectionType={sectionType}
-          />
-        ))}
-        
-        {activeTab === 'recurring' && recurringTasks.map((task) => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onStatusChange={onTaskStatusChange}
-            onSubGoalStatusChange={onSubGoalStatusChange}
-            onEdit={handleEditTask}
-            sectionType={sectionType}
-          />
-        ))}
-        
-        {activeTab === 'upcoming' && getUpcomingTasks().map((item) => renderUpcomingItem(item))}
-      </div>
+      {/* Tasks Display */}
+      {viewMode === 'card' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {activeTab !== 'upcoming' && getFilteredTasks().map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              onStatusChange={onTaskStatusChange}
+              onSubGoalStatusChange={onSubGoalStatusChange}
+              onEdit={handleEditTask}
+              sectionType={sectionType}
+            />
+          ))}
+          
+          {activeTab === 'upcoming' && getUpcomingTasks().map((item) => renderUpcomingItem(item))}
+        </div>
+      ) : (
+        <TaskList
+          tasks={activeTab !== 'upcoming' ? getFilteredTasks() : getUpcomingTasks()}
+          onStatusChange={onTaskStatusChange}
+          onSubGoalStatusChange={onSubGoalStatusChange}
+          onEdit={handleEditTask}
+          sectionType={sectionType}
+          isUpcoming={activeTab === 'upcoming'}
+        />
+      )}
 
-      {((activeTab === 'general' && tasks.length === 0) ||
-        (activeTab === 'recurring' && recurringTasks.length === 0) ||
-        (activeTab === 'upcoming' && getUpcomingTasks().length === 0)) && (
+      {getFilteredTasks().length === 0 && (
         <div className="text-center py-12">
-          <div className="text-gray-400 text-lg mb-2">No tasks found</div>
-          <p className="text-gray-500">Create your first task to get started!</p>
+          <div className="text-gray-400 text-lg mb-2">
+            {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
+              ? 'No tasks match the current filters' 
+              : 'No tasks found'
+            }
+          </div>
+          <p className="text-gray-500">
+            {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
+              ? 'Try adjusting your filters or create a new task' 
+              : 'Create your first task to get started!'
+            }
+          </p>
         </div>
       )}
 
