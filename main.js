@@ -386,11 +386,17 @@ function createWindow() {
   console.log('Development mode:', isDev);
   
   // Initialize database
-  try {
-    dbService = new DatabaseService();
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
+  if (DatabaseService) {
+    try {
+      dbService = new DatabaseService();
+      console.log('Database initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+      dbService = null;
+    }
+  } else {
+    console.log('Database service not available, using fallback storage');
+    dbService = null;
   }
   
   // Create the browser window
