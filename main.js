@@ -3,6 +3,14 @@ const { Notification, ipcMain, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
+const DatabaseService = require('./src/services/database-electron.js');
+const DatabaseService = require('./src/services/database-electron.js');
+
+// Initialize database
+let dbService;
+
+// Initialize database
+let dbService;
 
 // Enhanced notification manager
 class NotificationManager extends EventEmitter {
@@ -377,6 +385,14 @@ function createWindow() {
   console.log('Creating Electron window...');
   console.log('Development mode:', isDev);
   
+  // Initialize database
+  try {
+    dbService = new DatabaseService();
+    console.log('Database initialized successfully');
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+  }
+  
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -515,6 +531,126 @@ ipcMain.handle('load-notification-settings', () => {
 ipcMain.handle('show-notification', (event, { title, body, tasks }) => {
   showDesktopNotification(title, body, tasks);
   return { success: true };
+});
+
+// Database IPC handlers
+ipcMain.handle('db-save-task', (event, task, sectionId) => {
+  if (dbService) {
+    return dbService.saveTask(task, sectionId);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-get-tasks', (event, sectionId) => {
+  if (dbService) {
+    return dbService.getTasks(sectionId);
+  }
+  return [];
+});
+
+ipcMain.handle('db-save-recurring-task', (event, task, sectionId) => {
+  if (dbService) {
+    return dbService.saveRecurringTask(task, sectionId);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-get-recurring-tasks', (event, sectionId) => {
+  if (dbService) {
+    return dbService.getRecurringTasks(sectionId);
+  }
+  return [];
+});
+
+ipcMain.handle('db-save-blog-entry', (event, entry) => {
+  if (dbService) {
+    return dbService.saveBlogEntry(entry);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-get-blog-entries', () => {
+  if (dbService) {
+    return dbService.getBlogEntries();
+  }
+  return [];
+});
+
+ipcMain.handle('db-get-categories', (event, sectionId) => {
+  if (dbService) {
+    return dbService.getCategories(sectionId);
+  }
+  return [];
+});
+
+ipcMain.handle('db-add-category', (event, sectionId, categoryName) => {
+  if (dbService) {
+    return dbService.addCategory(sectionId, categoryName);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-remove-category', (event, sectionId, categoryName) => {
+  if (dbService) {
+    return dbService.removeCategory(sectionId, categoryName);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-update-task-status', (event, taskId, status) => {
+  if (dbService) {
+    return dbService.updateTaskStatus(taskId, status);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-update-recurring-task-status', (event, taskId, status) => {
+  if (dbService) {
+    return dbService.updateRecurringTaskStatus(taskId, status);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-update-blog-entry-status', (event, entryId, status) => {
+  if (dbService) {
+    return dbService.updateBlogEntryStatus(entryId, status);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-update-subgoal-status', (event, subGoalId, status) => {
+  if (dbService) {
+    return dbService.updateSubGoalStatus(subGoalId, status);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-delete-task', (event, taskId) => {
+  if (dbService) {
+    return dbService.deleteTask(taskId);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-delete-recurring-task', (event, taskId) => {
+  if (dbService) {
+    return dbService.deleteRecurringTask(taskId);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-delete-blog-entry', (event, entryId) => {
+  if (dbService) {
+    return dbService.deleteBlogEntry(entryId);
+  }
+  return { success: false, error: 'Database not initialized' };
+});
+
+ipcMain.handle('db-get-section-data', (event, sectionId) => {
+  if (dbService) {
+    return dbService.getSectionData(sectionId);
+  }
+  return null;
 });
 
 // Handle task data updates for notification intervals

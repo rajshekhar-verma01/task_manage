@@ -45,9 +45,53 @@ export const useTaskManager = () => {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    loadFromLocalStorage();
+    if (window.electronAPI && window.electronAPI.db) {
+      loadFromDatabase();
+    } else {
+      loadFromLocalStorage();
+    }
   }, []);
 
+  const loadFromDatabase = async () => {
+    try {
+      const sections = ['household', 'personal', 'official', 'blog'];
+      const loadedData = { ...tasks };
+
+      for (const sectionId of sections) {
+        if (sectionId === 'blog') {
+          const entries = await window.electronAPI.db.getBlogEntries();
+          const categories = await window.electronAPI.db.getCategories(sectionId);
+          loadedData.blog = {
+            ...loadedData.blog,
+            entries: Array.isArray(entries) ? entries : [],
+            categories: Array.isArray(categories) ? categories : loadedData.blog.categories,
+          };
+        } else {
+          const sectionTasks = await window.electronAPI.db.getTasks(sectionId);
+          const recurringTasks = await window.electronAPI.db.getRecurringTasks(sectionId);
+          const categories = await window.electronAPI.db.getCategories(sectionId);
+          
+          loadedData[sectionId as keyof TaskData] = {
+            ...loadedData[sectionId as keyof TaskData],
+            tasks: Array.isArray(sectionTasks) ? sectionTasks : [],
+            recurringTasks: Array.isArray(recurringTasks) ? recurringTasks : [],
+            categories: Array.isArray(categories) ? categories : loadedData[sectionId as keyof TaskData].categories,
+          };
+        }
+      }
+
+      setTasks(loadedData);
+      
+      // Update recurring task statuses after loading from database
+      setTimeout(() => {
+        updateRecurringTaskStatuses();
+      }, 100);
+    } catch (error) {
+      console.error('Error loading tasks from database:', error);
+      // Fallback to localStorage if database fails
+      loadFromLocalStorage();
+    }
+  };
   // Update notification intervals when tasks change
   useEffect(() => {
     if (window.electronAPI && Object.keys(tasks).length > 0) {
@@ -164,7 +208,21 @@ export const useTaskManager = () => {
   };
 
   const updateTask = (sectionId: string, task: Task | PersonalDevelopmentTask) => {
-    updateTaskInMemory(sectionId, task);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateTaskInDatabase(sectionId, task);
+    } else {
+      updateTaskInMemory(sectionId, task);
+    }
+  };
+
+  const updateTaskInDatabase = async (sectionId: string, task: Task | PersonalDevelopmentTask) => {
+    try {
+      await window.electronAPI.db.saveTask(task, sectionId);
+      updateTaskInMemory(sectionId, task);
+    } catch (error) {
+      console.error('Error saving task to database:', error);
+      updateTaskInMemory(sectionId, task);
+    }
   };
 
   const updateTaskInMemory = (sectionId: string, task: Task | PersonalDevelopmentTask) => {
@@ -196,7 +254,21 @@ export const useTaskManager = () => {
       task.status = taskStartDate <= today ? 'in-progress' : 'todo';
     }
     
-    updateRecurringTaskInMemory(sectionId, task);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateRecurringTaskInDatabase(sectionId, task);
+    } else {
+      updateRecurringTaskInMemory(sectionId, task);
+    }
+  };
+
+  const updateRecurringTaskInDatabase = async (sectionId: string, task: RecurringTask) => {
+    try {
+      await window.electronAPI.db.saveRecurringTask(task, sectionId);
+      updateRecurringTaskInMemory(sectionId, task);
+    } catch (error) {
+      console.error('Error saving recurring task to database:', error);
+      updateRecurringTaskInMemory(sectionId, task);
+    }
   };
 
   const updateRecurringTaskInMemory = (sectionId: string, task: RecurringTask) => {
@@ -228,7 +300,21 @@ export const useTaskManager = () => {
   };
 
   const updateTaskStatus = (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
-    updateTaskStatusInMemory(sectionId, taskId, status);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateTaskStatusInDatabase(sectionId, taskId, status);
+    } else {
+      updateTaskStatusInMemory(sectionId, taskId, status);
+    }
+  };
+
+  const updateTaskStatusInDatabase = async (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
+    try {
+      await window.electronAPI.db.updateTaskStatus(taskId, status);
+      updateTaskStatusInMemory(sectionId, taskId, status);
+    } catch (error) {
+      console.error('Error updating task status in database:', error);
+      updateTaskStatusInMemory(sectionId, taskId, status);
+    }
   };
 
   const updateTaskStatusInMemory = (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
@@ -248,7 +334,21 @@ export const useTaskManager = () => {
   };
 
   const updateSubGoalStatus = (sectionId: string, taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => {
-    updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateSubGoalStatusInDatabase(sectionId, taskId, subGoalId, status);
+    } else {
+      updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
+    }
+  };
+
+  const updateSubGoalStatusInDatabase = async (sectionId: string, taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => {
+    try {
+      await window.electronAPI.db.updateSubGoalStatus(subGoalId, status);
+      updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
+    } catch (error) {
+      console.error('Error updating subgoal status in database:', error);
+      updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
+    }
   };
 
   const updateSubGoalStatusInMemory = (sectionId: string, taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => {
@@ -283,7 +383,21 @@ export const useTaskManager = () => {
 
   // Blog entry management functions
   const updateBlogEntry = (entry: BlogEntry) => {
-    updateBlogEntryInMemory(entry);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateBlogEntryInDatabase(entry);
+    } else {
+      updateBlogEntryInMemory(entry);
+    }
+  };
+
+  const updateBlogEntryInDatabase = async (entry: BlogEntry) => {
+    try {
+      await window.electronAPI.db.saveBlogEntry(entry);
+      updateBlogEntryInMemory(entry);
+    } catch (error) {
+      console.error('Error saving blog entry to database:', error);
+      updateBlogEntryInMemory(entry);
+    }
   };
 
   const updateBlogEntryInMemory = (entry: BlogEntry) => {
@@ -303,7 +417,21 @@ export const useTaskManager = () => {
   };
 
   const updateBlogEntryStatus = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
-    updateBlogEntryStatusInMemory(entryId, status);
+    if (window.electronAPI && window.electronAPI.db) {
+      updateBlogEntryStatusInDatabase(entryId, status);
+    } else {
+      updateBlogEntryStatusInMemory(entryId, status);
+    }
+  };
+
+  const updateBlogEntryStatusInDatabase = async (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
+    try {
+      await window.electronAPI.db.updateBlogEntryStatus(entryId, status);
+      updateBlogEntryStatusInMemory(entryId, status);
+    } catch (error) {
+      console.error('Error updating blog entry status in database:', error);
+      updateBlogEntryStatusInMemory(entryId, status);
+    }
   };
 
   const updateBlogEntryStatusInMemory = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
@@ -323,7 +451,21 @@ export const useTaskManager = () => {
   };
 
   const deleteBlogEntry = (entryId: string) => {
-    deleteBlogEntryInMemory(entryId);
+    if (window.electronAPI && window.electronAPI.db) {
+      deleteBlogEntryInDatabase(entryId);
+    } else {
+      deleteBlogEntryInMemory(entryId);
+    }
+  };
+
+  const deleteBlogEntryInDatabase = async (entryId: string) => {
+    try {
+      await window.electronAPI.db.deleteBlogEntry(entryId);
+      deleteBlogEntryInMemory(entryId);
+    } catch (error) {
+      console.error('Error deleting blog entry from database:', error);
+      deleteBlogEntryInMemory(entryId);
+    }
   };
 
   const deleteBlogEntryInMemory = (entryId: string) => {
@@ -341,7 +483,21 @@ export const useTaskManager = () => {
   };
 
   const addCategory = (sectionId: string, category: string) => {
-    addCategoryInMemory(sectionId, category);
+    if (window.electronAPI && window.electronAPI.db) {
+      addCategoryInDatabase(sectionId, category);
+    } else {
+      addCategoryInMemory(sectionId, category);
+    }
+  };
+
+  const addCategoryInDatabase = async (sectionId: string, category: string) => {
+    try {
+      await window.electronAPI.db.addCategory(sectionId, category);
+      addCategoryInMemory(sectionId, category);
+    } catch (error) {
+      console.error('Error adding category to database:', error);
+      addCategoryInMemory(sectionId, category);
+    }
   };
 
   const addCategoryInMemory = (sectionId: string, category: string) => {
@@ -359,7 +515,21 @@ export const useTaskManager = () => {
   };
 
   const deleteTask = (sectionId: string, taskId: string) => {
-    deleteTaskInMemory(sectionId, taskId);
+    if (window.electronAPI && window.electronAPI.db) {
+      deleteTaskInDatabase(sectionId, taskId);
+    } else {
+      deleteTaskInMemory(sectionId, taskId);
+    }
+  };
+
+  const deleteTaskInDatabase = async (sectionId: string, taskId: string) => {
+    try {
+      await window.electronAPI.db.deleteTask(taskId);
+      deleteTaskInMemory(sectionId, taskId);
+    } catch (error) {
+      console.error('Error deleting task from database:', error);
+      deleteTaskInMemory(sectionId, taskId);
+    }
   };
 
   const deleteTaskInMemory = (sectionId: string, taskId: string) => {
@@ -377,7 +547,21 @@ export const useTaskManager = () => {
   };
 
   const deleteRecurringTask = (sectionId: string, taskId: string) => {
-    deleteRecurringTaskInMemory(sectionId, taskId);
+    if (window.electronAPI && window.electronAPI.db) {
+      deleteRecurringTaskInDatabase(sectionId, taskId);
+    } else {
+      deleteRecurringTaskInMemory(sectionId, taskId);
+    }
+  };
+
+  const deleteRecurringTaskInDatabase = async (sectionId: string, taskId: string) => {
+    try {
+      await window.electronAPI.db.deleteRecurringTask(taskId);
+      deleteRecurringTaskInMemory(sectionId, taskId);
+    } catch (error) {
+      console.error('Error deleting recurring task from database:', error);
+      deleteRecurringTaskInMemory(sectionId, taskId);
+    }
   };
 
   const deleteRecurringTaskInMemory = (sectionId: string, taskId: string) => {
@@ -394,7 +578,21 @@ export const useTaskManager = () => {
     });
   };
   const removeCategory = (sectionId: string, category: string) => {
-    removeCategoryInMemory(sectionId, category);
+    if (window.electronAPI && window.electronAPI.db) {
+      removeCategoryInDatabase(sectionId, category);
+    } else {
+      removeCategoryInMemory(sectionId, category);
+    }
+  };
+
+  const removeCategoryInDatabase = async (sectionId: string, category: string) => {
+    try {
+      await window.electronAPI.db.removeCategory(sectionId, category);
+      removeCategoryInMemory(sectionId, category);
+    } catch (error) {
+      console.error('Error removing category from database:', error);
+      removeCategoryInMemory(sectionId, category);
+    }
   };
 
   const removeCategoryInMemory = (sectionId: string, category: string) => {

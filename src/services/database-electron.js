@@ -1,20 +1,19 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-import { Task, PersonalDevelopmentTask, RecurringTask, SubGoal, TaskSection } from '../types';
+const { app } = require('electron');
 
 class DatabaseService {
-  private db: Database.Database;
-
-  constructor(userDataPath?: string) {
+  constructor() {
     // Get user data directory for database storage
-    const dataPath = userDataPath || './';
-    const dbPath = path.join(dataPath, 'taskflow.db');
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'taskflow.db');
     
+    console.log('Database path:', dbPath);
     this.db = new Database(dbPath);
     this.initializeTables();
   }
 
-  private initializeTables() {
+  initializeTables() {
     // Create tasks table
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
@@ -88,7 +87,7 @@ class DatabaseService {
         description TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('to-read', 'reading', 'practiced', 'expert')),
         category TEXT NOT NULL,
-        target_date TEXT NOT NULL,
+        due_date TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )
@@ -98,7 +97,7 @@ class DatabaseService {
     this.insertDefaultCategories();
   }
 
-  private insertDefaultCategories() {
+  insertDefaultCategories() {
     const defaultCategories = [
       { section: 'household', categories: ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'] },
       { section: 'personal', categories: ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'] },
@@ -118,8 +117,7 @@ class DatabaseService {
   }
 
   // Task operations
-  saveTask(task: Task | PersonalDevelopmentTask, sectionId: string) {
-    const personalTask = task as PersonalDevelopmentTask;
+  saveTask(task, sectionId) {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO tasks (
         id, title, description, status, due_date, category, section_id,
@@ -137,26 +135,28 @@ class DatabaseService {
       sectionId,
       task.createdAt,
       task.updatedAt,
-      personalTask.classStartDate || null,
-      personalTask.classFromTime || null,
-      personalTask.classToTime || null,
-      personalTask.progress || 0
+      task.classStartDate || null,
+      task.classFromTime || null,
+      task.classToTime || null,
+      task.progress || 0
     );
 
     // Save sub goals if they exist
-    if (personalTask.subGoals) {
-      this.saveSubGoals(task.id, personalTask.subGoals);
+    if (task.subGoals && Array.isArray(task.subGoals)) {
+      this.saveSubGoals(task.id, task.subGoals);
     }
+
+    return { success: true };
   }
 
-  getTasks(sectionId: string): Task[] {
+  getTasks(sectionId) {
     const stmt = this.db.prepare(`
       SELECT * FROM tasks WHERE section_id = ? ORDER BY created_at DESC
     `);
-    const rows = stmt.all(sectionId) as any[];
+    const rows = stmt.all(sectionId);
 
     return rows.map(row => {
-      const task: Task | PersonalDevelopmentTask = {
+      const task = {
         id: row.id,
         title: row.title,
         description: row.description,
@@ -169,93 +169,19 @@ class DatabaseService {
 
       // Add personal development specific fields
       if (sectionId === 'personal') {
-        const personalTask = task as PersonalDevelopmentTask;
-        personalTask.classStartDate = row.class_start_date;
-        personalTask.classFromTime = row.class_from_time;
-        personalTask.classToTime = row.class_to_time;
-        personalTask.progress = row.progress;
-        personalTask.subGoals = this.getSubGoals(row.id);
+        task.classStartDate = row.class_start_date;
+        task.classFromTime = row.class_from_time;
+        task.classToTime = row.class_to_time;
+        task.progress = row.progress;
+        task.subGoals = this.getSubGoals(row.id);
       }
 
       return task;
     });
   }
 
-  updateTaskStatus(taskId: string, status: string) {
-    const stmt = this.db.prepare(`
-      UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?
-    `);
-    stmt.run(status, new Date().toISOString(), taskId);
-  }
-
-  updateRecurringTaskStatus(taskId: string, status: string) {
-    const stmt = this.db.prepare(`
-      UPDATE recurring_tasks SET status = ?, updated_at = ? WHERE id = ?
-    `);
-    stmt.run(status, new Date().toISOString(), taskId);
-  }
-
-  deleteTask(taskId: string) {
-    const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
-    stmt.run(taskId);
-  }
-
-  deleteRecurringTask(taskId: string) {
-    const stmt = this.db.prepare('DELETE FROM recurring_tasks WHERE id = ?');
-    stmt.run(taskId);
-  }
-
-  // Blog entry operations
-  saveBlogEntry(entry: any) {
-    const stmt = this.db.prepare(`
-      INSERT OR REPLACE INTO blog_entries (
-        id, title, description, status, category, target_date, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      entry.id,
-      entry.title,
-      entry.description,
-      entry.status,
-      entry.category,
-      entry.targetDate,
-      entry.createdAt,
-      entry.updatedAt
-    );
-  }
-
-  getBlogEntries(): any[] {
-    const stmt = this.db.prepare(`
-      SELECT * FROM blog_entries ORDER BY created_at DESC
-    `);
-    const rows = stmt.all() as any[];
-
-    return rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      category: row.category,
-      targetDate: row.target_date,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
-  }
-
-  updateBlogEntryStatus(entryId: string, status: string) {
-    const stmt = this.db.prepare(`
-      UPDATE blog_entries SET status = ?, updated_at = ? WHERE id = ?
-    `);
-    stmt.run(status, new Date().toISOString(), entryId);
-  }
-
-  deleteBlogEntry(entryId: string) {
-    const stmt = this.db.prepare('DELETE FROM blog_entries WHERE id = ?');
-    stmt.run(entryId);
-  }
   // Recurring task operations
-  saveRecurringTask(task: RecurringTask, sectionId: string) {
+  saveRecurringTask(task, sectionId) {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO recurring_tasks (
         id, title, description, status, category, section_id,
@@ -278,13 +204,15 @@ class DatabaseService {
       task.recurrenceUnit,
       task.nextOccurrence
     );
+
+    return { success: true };
   }
 
-  getRecurringTasks(sectionId: string): RecurringTask[] {
+  getRecurringTasks(sectionId) {
     const stmt = this.db.prepare(`
       SELECT * FROM recurring_tasks WHERE section_id = ? ORDER BY created_at DESC
     `);
-    const rows = stmt.all(sectionId) as any[];
+    const rows = stmt.all(sectionId);
 
     return rows.map(row => ({
       id: row.id,
@@ -302,8 +230,48 @@ class DatabaseService {
     }));
   }
 
+  // Blog entry operations
+  saveBlogEntry(entry) {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO blog_entries (
+        id, title, description, status, category, due_date, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      entry.id,
+      entry.title,
+      entry.description,
+      entry.status,
+      entry.category,
+      entry.dueDate,
+      entry.createdAt,
+      entry.updatedAt
+    );
+
+    return { success: true };
+  }
+
+  getBlogEntries() {
+    const stmt = this.db.prepare(`
+      SELECT * FROM blog_entries ORDER BY created_at DESC
+    `);
+    const rows = stmt.all();
+
+    return rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      category: row.category,
+      dueDate: row.due_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
   // Sub goal operations
-  private saveSubGoals(taskId: string, subGoals: SubGoal[]) {
+  saveSubGoals(taskId, subGoals) {
     // First, delete existing sub goals for this task
     const deleteStmt = this.db.prepare('DELETE FROM sub_goals WHERE task_id = ?');
     deleteStmt.run(taskId);
@@ -332,11 +300,11 @@ class DatabaseService {
     });
   }
 
-  private getSubGoals(taskId: string): SubGoal[] {
+  getSubGoals(taskId) {
     const stmt = this.db.prepare(`
       SELECT * FROM sub_goals WHERE task_id = ? ORDER BY created_at ASC
     `);
-    const rows = stmt.all(taskId) as any[];
+    const rows = stmt.all(taskId);
 
     return rows.map(row => ({
       id: row.id,
@@ -351,7 +319,57 @@ class DatabaseService {
     }));
   }
 
-  updateSubGoalStatus(subGoalId: string, status: string) {
+  // Category operations
+  getCategories(sectionId) {
+    const stmt = this.db.prepare(`
+      SELECT name FROM categories WHERE section_id = ? ORDER BY name ASC
+    `);
+    const rows = stmt.all(sectionId);
+    return rows.map(row => row.name);
+  }
+
+  addCategory(sectionId, categoryName) {
+    const stmt = this.db.prepare(`
+      INSERT OR IGNORE INTO categories (name, section_id) VALUES (?, ?)
+    `);
+    stmt.run(categoryName, sectionId);
+    return { success: true };
+  }
+
+  removeCategory(sectionId, categoryName) {
+    const stmt = this.db.prepare(`
+      DELETE FROM categories WHERE name = ? AND section_id = ?
+    `);
+    stmt.run(categoryName, sectionId);
+    return { success: true };
+  }
+
+  // Status update operations
+  updateTaskStatus(taskId, status) {
+    const stmt = this.db.prepare(`
+      UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(status, new Date().toISOString(), taskId);
+    return { success: true };
+  }
+
+  updateRecurringTaskStatus(taskId, status) {
+    const stmt = this.db.prepare(`
+      UPDATE recurring_tasks SET status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(status, new Date().toISOString(), taskId);
+    return { success: true };
+  }
+
+  updateBlogEntryStatus(entryId, status) {
+    const stmt = this.db.prepare(`
+      UPDATE blog_entries SET status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(status, new Date().toISOString(), entryId);
+    return { success: true };
+  }
+
+  updateSubGoalStatus(subGoalId, status) {
     const stmt = this.db.prepare(`
       UPDATE sub_goals SET status = ?, completed = ?, updated_at = ? WHERE id = ?
     `);
@@ -359,12 +377,13 @@ class DatabaseService {
 
     // Update parent task progress
     this.updateTaskProgress(subGoalId);
+    return { success: true };
   }
 
-  private updateTaskProgress(subGoalId: string) {
+  updateTaskProgress(subGoalId) {
     // Get the task ID for this sub goal
     const taskStmt = this.db.prepare('SELECT task_id FROM sub_goals WHERE id = ?');
-    const result = taskStmt.get(subGoalId) as any;
+    const result = taskStmt.get(subGoalId);
     
     if (result) {
       // Calculate progress
@@ -374,7 +393,7 @@ class DatabaseService {
           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
         FROM sub_goals WHERE task_id = ?
       `);
-      const progress = progressStmt.get(result.task_id) as any;
+      const progress = progressStmt.get(result.task_id);
       
       const progressPercentage = progress.total > 0 
         ? Math.round((progress.completed / progress.total) * 100) 
@@ -388,36 +407,32 @@ class DatabaseService {
     }
   }
 
-  // Category operations
-  getCategories(sectionId: string): string[] {
-    const stmt = this.db.prepare(`
-      SELECT name FROM categories WHERE section_id = ? ORDER BY name ASC
-    `);
-    const rows = stmt.all(sectionId) as any[];
-    return rows.map(row => row.name);
+  // Delete operations
+  deleteTask(taskId) {
+    const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
+    stmt.run(taskId);
+    return { success: true };
   }
 
-  addCategory(sectionId: string, categoryName: string) {
-    const stmt = this.db.prepare(`
-      INSERT OR IGNORE INTO categories (name, section_id) VALUES (?, ?)
-    `);
-    stmt.run(categoryName, sectionId);
+  deleteRecurringTask(taskId) {
+    const stmt = this.db.prepare('DELETE FROM recurring_tasks WHERE id = ?');
+    stmt.run(taskId);
+    return { success: true };
   }
 
-  removeCategory(sectionId: string, categoryName: string) {
-    const stmt = this.db.prepare(`
-      DELETE FROM categories WHERE name = ? AND section_id = ?
-    `);
-    stmt.run(categoryName, sectionId);
+  deleteBlogEntry(entryId) {
+    const stmt = this.db.prepare('DELETE FROM blog_entries WHERE id = ?');
+    stmt.run(entryId);
+    return { success: true };
   }
 
   // Get all data for a section
-  getSectionData(sectionId: string): TaskSection {
+  getSectionData(sectionId) {
     const sectionNames = {
       household: 'Household Work',
       personal: 'Personal Development',
       official: 'Official Work',
-      blog: 'Blog',
+      blog: 'Blog & Learning',
     };
 
     const sectionColors = {
@@ -430,17 +445,17 @@ class DatabaseService {
     if (sectionId === 'blog') {
       return {
         id: sectionId,
-        name: sectionNames[sectionId as keyof typeof sectionNames],
-        color: sectionColors[sectionId as keyof typeof sectionColors],
+        name: sectionNames[sectionId],
+        color: sectionColors[sectionId],
         entries: this.getBlogEntries(),
         categories: this.getCategories(sectionId),
-      } as any;
+      };
     }
 
     return {
       id: sectionId,
-      name: sectionNames[sectionId as keyof typeof sectionNames],
-      color: sectionColors[sectionId as keyof typeof sectionColors],
+      name: sectionNames[sectionId],
+      color: sectionColors[sectionId],
       tasks: this.getTasks(sectionId),
       recurringTasks: this.getRecurringTasks(sectionId),
       categories: this.getCategories(sectionId),
@@ -452,4 +467,4 @@ class DatabaseService {
   }
 }
 
-export default DatabaseService;
+module.exports = DatabaseService;
