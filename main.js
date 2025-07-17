@@ -1,10 +1,91 @@
 const { app, BrowserWindow, Menu } = require('electron');
+const { Notification, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
-// Check if we're in development mode
+// Notification intervals storage
+let notificationIntervals = new Map();
+let mainWindow;
+
+// Database path for notifications
+const getNotificationDataPath = () => {
+  const userDataPath = app.getPath('userData');
+  return path.join(userDataPath, 'notifications.json');
+};
+
+// Load notification settings
+const loadNotificationSettings = () => {
+  try {
+    const dataPath = getNotificationDataPath();
+    if (fs.existsSync(dataPath)) {
+      const data = fs.readFileSync(dataPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error loading notification settings:', error);
+  }
+  return {};
+};
+
+// Save notification settings
+const saveNotificationSettings = (settings) => {
+  try {
+    const dataPath = getNotificationDataPath();
+    fs.writeFileSync(dataPath, JSON.stringify(settings, null, 2));
+  } catch (error) {
+    console.error('Error saving notification settings:', error);
+  }
+};
+
+// Show desktop notification
+const showDesktopNotification = (title, body, tasks = []) => {
+  if (Notification.isSupported()) {
+    const notification = new Notification({
+      title,
+      body,
+      icon: path.join(__dirname, 'public', 'icon.png'),
+      urgency: 'normal',
+      timeoutType: 'default'
+    });
+
+    notification.on('click', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+        mainWindow.show();
+      }
+    });
+
+    notification.show();
+  }
+};
+
+// Check for due tasks and show notifications
+const checkDueTasks = () => {
+  if (mainWindow && mainWindow.webContents) {
+    mainWindow.webContents.send('check-due-tasks');
+  }
+};
+
+// Setup notification intervals
+const setupNotificationIntervals = (settings) => {
+  // Clear existing intervals
+  notificationIntervals.forEach(interval => clearInterval(interval));
+  notificationIntervals.clear();
+
+  Object.entries(settings).forEach(([sectionId, config]) => {
+    if (config.enabled && config.interval > 0) {
+      const intervalMs = config.interval * 60 * 1000; // Convert minutes to milliseconds
+      const intervalId = setInterval(() => {
+        checkDueTasks();
+      }, intervalMs);
+      notificationIntervals.set(sectionId, intervalId);
+    }
+  });
+};
+
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
-let mainWindow;
 
 function createWindow() {
   console.log('Creating Electron window...');
@@ -19,6 +100,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'public', 'preload.js'),
       enableRemoteModule: false,
       webSecurity: true
     },
@@ -59,6 +141,9 @@ function createWindow() {
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
+    // Clear notification intervals
+    notificationIntervals.forEach(interval => clearInterval(interval));
+    notificationIntervals.clear();
   });
 
   // Debug logs
@@ -80,6 +165,15 @@ function createWindow() {
 
   mainWindow.webContents.on('dom-ready', () => {
     console.log('DOM is ready');
+    
+    // Load and setup notification settings
+    const settings = loadNotificationSettings();
+    setupNotificationIntervals(settings);
+    
+    // Show startup popup after a short delay
+    setTimeout(() => {
+      checkDueTasks();
+    }, 2000);
   });
 }
 
@@ -88,6 +182,12 @@ app.whenReady().then(() => {
   console.log('Electron app is ready');
   console.log('Process arguments:', process.argv);
   console.log('Environment NODE_ENV:', process.env.NODE_ENV);
+  
+  // Request notification permission
+  if (process.platform === 'darwin') {
+    app.dock.setBadge('');
+  }
+  
   createWindow();
 });
 
@@ -110,4 +210,39 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// IPC handlers for notifications
+ipcMain.handle('save-notification-settings', (event, settings) => {
+  saveNotificationSettings(settings);
+  setupNotificationIntervals(settings);
+  return { success: true };
+});
+
+ipcMain.handle('load-notification-settings', () => {
+  return loadNotificationSettings();
+});
+
+ipcMain.handle('show-notification', (event, { title, body, tasks }) => {
+  showDesktopNotification(title, body, tasks);
+  return { success: true };
+});
+
+ipcMain.handle('show-due-tasks-popup', (event, dueTasks) => {
+  if (dueTasks && dueTasks.length > 0) {
+    // Show notification for due tasks
+    const taskCount = dueTasks.length;
+    const title = `${taskCount} Task${taskCount > 1 ? 's' : ''} Due Today`;
+    const body = dueTasks.slice(0, 3).map(task => `• ${task.title}`).join('\n') + 
+                 (taskCount > 3 ? `\n...and ${taskCount - 3} more` : '');
+    
+    showDesktopNotification(title, body, dueTasks);
+    
+    // Focus window if minimized
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      mainWindow.show();
+    }
+  }
 });

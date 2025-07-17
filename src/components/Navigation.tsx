@@ -1,12 +1,13 @@
 import React from 'react';
-import { Home, Users, Briefcase, PenTool, BarChart3 } from 'lucide-react';
+import { Home, Users, Briefcase, PenTool, BarChart3, Bell } from 'lucide-react';
 
 interface NavigationProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
+  onNotificationSettings: () => void;
 }
 
-const Navigation: React.FC<NavigationProps> = ({ activeSection, onSectionChange }) => {
+const Navigation: React.FC<NavigationProps> = ({ activeSection, onSectionChange, onNotificationSettings }) => {
   const sections = [
     { id: 'household', name: 'Household', icon: Home, color: 'bg-green-500' },
     { id: 'personal', name: 'Personal Dev', icon: Users, color: 'bg-blue-500' },
@@ -55,6 +56,16 @@ const Navigation: React.FC<NavigationProps> = ({ activeSection, onSectionChange 
               <BarChart3 className={`w-5 h-5 ${activeSection === 'analytics' ? 'text-blue-600' : 'text-gray-600'}`} />
             </div>
             <span className="font-medium">Analytics</span>
+          </button>
+          
+          <button
+            onClick={onNotificationSettings}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 hover:bg-gray-50 text-gray-700 mt-2"
+          >
+            <div className="p-2 rounded-lg bg-yellow-500 bg-opacity-20">
+              <Bell className="w-5 h-5 text-gray-600" />
+            </div>
+            <span className="font-medium">Notifications</span>
           </button>
         </div>
       </div>
