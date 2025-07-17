@@ -61,30 +61,38 @@ export const useTaskManager = () => {
       try {
         const parsedTasks = JSON.parse(savedTasks);
         
-        // Ensure all required arrays exist with defaults
+        // Ensure all required arrays exist with defaults and proper structure
         const sanitizedTasks = {
           household: {
-            ...parsedTasks.household,
-            tasks: parsedTasks.household?.tasks || [],
-            recurringTasks: parsedTasks.household?.recurringTasks || [],
-            categories: parsedTasks.household?.categories || ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+            id: 'household',
+            name: 'Household Work',
+            color: 'green',
+            tasks: Array.isArray(parsedTasks.household?.tasks) ? parsedTasks.household.tasks : [],
+            recurringTasks: Array.isArray(parsedTasks.household?.recurringTasks) ? parsedTasks.household.recurringTasks : [],
+            categories: Array.isArray(parsedTasks.household?.categories) ? parsedTasks.household.categories : ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
           },
           personal: {
-            ...parsedTasks.personal,
-            tasks: parsedTasks.personal?.tasks || [],
-            recurringTasks: parsedTasks.personal?.recurringTasks || [],
-            categories: parsedTasks.personal?.categories || ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+            id: 'personal',
+            name: 'Personal Development',
+            color: 'blue',
+            tasks: Array.isArray(parsedTasks.personal?.tasks) ? parsedTasks.personal.tasks : [],
+            recurringTasks: Array.isArray(parsedTasks.personal?.recurringTasks) ? parsedTasks.personal.recurringTasks : [],
+            categories: Array.isArray(parsedTasks.personal?.categories) ? parsedTasks.personal.categories : ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
           },
           official: {
-            ...parsedTasks.official,
-            tasks: parsedTasks.official?.tasks || [],
-            recurringTasks: parsedTasks.official?.recurringTasks || [],
-            categories: parsedTasks.official?.categories || ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+            id: 'official',
+            name: 'Official Work',
+            color: 'purple',
+            tasks: Array.isArray(parsedTasks.official?.tasks) ? parsedTasks.official.tasks : [],
+            recurringTasks: Array.isArray(parsedTasks.official?.recurringTasks) ? parsedTasks.official.recurringTasks : [],
+            categories: Array.isArray(parsedTasks.official?.categories) ? parsedTasks.official.categories : ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
           },
           blog: {
-            ...parsedTasks.blog,
-            entries: parsedTasks.blog?.entries || [],
-            categories: parsedTasks.blog?.categories || ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
+            id: 'blog',
+            name: 'Blog & Learning',
+            color: 'orange',
+            entries: Array.isArray(parsedTasks.blog?.entries) ? parsedTasks.blog.entries : [],
+            categories: Array.isArray(parsedTasks.blog?.categories) ? parsedTasks.blog.categories : ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
           },
         };
         
@@ -115,14 +123,15 @@ export const useTaskManager = () => {
       const newTasks = { ...prev };
       
       Object.keys(newTasks).forEach(sectionId => {
-        const section = newTasks[sectionId as keyof TaskData];
+    const upcomingTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
         
-        section.recurringTasks = section.recurringTasks.map(task => {
+        if (section && Array.isArray(section.recurringTasks)) {
+          section.recurringTasks = section.recurringTasks.map(task => {
           const startDate = new Date(task.startDate);
           startDate.setHours(0, 0, 0, 0);
           
           // If start date is today or in the past, and status is 'todo', change to 'in-progress'
-          if (startDate <= today && task.status === 'todo') {
+    upcomingRecurring = (Array.isArray(recurringTasks) ? recurringTasks : []).filter(task => {
             hasUpdates = true;
             const updatedTask = {
               ...task,
@@ -130,7 +139,7 @@ export const useTaskManager = () => {
               updatedAt: new Date().toISOString(),
             };
             
-            // Update in database if available
+      (Array.isArray(tasks) ? tasks : []).forEach(task => {
             if (dbService) {
               try {
                 dbService.saveRecurringTask(updatedTask, sectionId);
@@ -144,6 +153,7 @@ export const useTaskManager = () => {
           
           return task;
         });
+        }
       });
       
       if (hasUpdates) {

@@ -128,14 +128,16 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     let upcomingRecurring: RecurringTask[] = [];
     
     // Add upcoming general tasks
-    const upcomingTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    const upcomingTasks = safeTasks.filter(task => {
       const dueDate = new Date(task.dueDate);
       return dueDate > now && task.status !== 'completed';
     });
     upcomingGeneral.push(...upcomingTasks);
     
     // Add upcoming recurring tasks
-    upcomingRecurring = (Array.isArray(recurringTasks) ? recurringTasks : []).filter(task => {
+    const safeRecurringTasks = Array.isArray(recurringTasks) ? recurringTasks : [];
+    upcomingRecurring = safeRecurringTasks.filter(task => {
       const nextDate = new Date(task.nextOccurrence);
       const endDate = task.endDate ? new Date(task.endDate) : null;
       return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
@@ -143,7 +145,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     
     // Add upcoming sub goals from personal development tasks
     if (sectionType === 'personal') {
-      (Array.isArray(tasks) ? tasks : []).forEach(task => {
+      safeTasks.forEach(task => {
         const personalTask = task as PersonalDevelopmentTask;
         if (Array.isArray(personalTask.subGoals)) {
           personalTask.subGoals.forEach(subGoal => {
