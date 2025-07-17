@@ -123,36 +123,34 @@ export const useTaskManager = () => {
       const newTasks = { ...prev };
       
       Object.keys(newTasks).forEach(sectionId => {
-    const upcomingTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
-        
-        if (section && Array.isArray(section.recurringTasks)) {
+        const section = newTasks[sectionId as keyof TaskData];
+        if ('recurringTasks' in section) {
           section.recurringTasks = section.recurringTasks.map(task => {
-          const startDate = new Date(task.startDate);
-          startDate.setHours(0, 0, 0, 0);
-          
-          // If start date is today or in the past, and status is 'todo', change to 'in-progress'
-    upcomingRecurring = (Array.isArray(recurringTasks) ? recurringTasks : []).filter(task => {
-            hasUpdates = true;
-            const updatedTask = {
-              ...task,
-              status: 'in-progress' as const,
-              updatedAt: new Date().toISOString(),
-            };
+            const startDate = new Date(task.startDate);
+            startDate.setHours(0, 0, 0, 0);
             
-      (Array.isArray(tasks) ? tasks : []).forEach(task => {
-            if (dbService) {
-              try {
-                dbService.saveRecurringTask(updatedTask, sectionId);
-              } catch (error) {
-                console.error('Error updating recurring task status in database:', error);
+            // If start date is today or in the past, and status is 'todo', change to 'in-progress'
+            if (startDate <= today && task.status === 'todo') {
+              hasUpdates = true;
+              const updatedTask = {
+                ...task,
+                status: 'in-progress' as const,
+                updatedAt: new Date().toISOString(),
+              };
+              
+              if (dbService) {
+                try {
+                  dbService.saveRecurringTask(updatedTask, sectionId);
+                } catch (error) {
+                  console.error('Error updating recurring task status in database:', error);
+                }
               }
+              
+              return updatedTask;
             }
             
-            return updatedTask;
-          }
-          
-          return task;
-        });
+            return task;
+          });
         }
       });
       
