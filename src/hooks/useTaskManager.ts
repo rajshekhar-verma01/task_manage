@@ -662,7 +662,7 @@ export const useTaskManager = () => {
         section.tasks.forEach(task => {
           const personalTask = task as PersonalDevelopmentTask;
           if (personalTask.subGoals) {
-            allItems.push(...personalTask.subGoals);
+            });
           }
         });
       }
