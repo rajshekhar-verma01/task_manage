@@ -27,11 +27,13 @@ function App() {
   // Check for due tasks on app start and when tasks change
   useEffect(() => {
     const timer = setTimeout(() => {
-      checkDueTasks(tasks, true); // Pass true to indicate this is a startup check
+      if (Object.keys(tasks).length > 0) {
+        checkDueTasks(tasks, true); // Pass true to indicate this is a startup check
+      }
     }, 1000); // Small delay to ensure tasks are loaded
 
     return () => clearTimeout(timer);
-  }, []); // Remove tasks dependency to only run on mount
+  }, [tasks, checkDueTasks]); // Add back dependencies but with proper check
 
   // Listen for due task checks from main process
   useEffect(() => {
