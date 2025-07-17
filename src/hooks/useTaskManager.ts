@@ -290,6 +290,61 @@ export const useTaskManager = () => {
     });
   };
 
+  const deleteTask = (sectionId: string, taskId: string) => {
+    if (dbService) {
+      try {
+        dbService.deleteTask(taskId);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error deleting task from database:', error);
+        deleteTaskInMemory(sectionId, taskId);
+      }
+    } else {
+      deleteTaskInMemory(sectionId, taskId);
+    }
+  };
+
+  const deleteTaskInMemory = (sectionId: string, taskId: string) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        [sectionId]: {
+          ...prev[sectionId as keyof TaskData],
+          tasks: prev[sectionId as keyof TaskData].tasks.filter(task => task.id !== taskId),
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
+
+  const deleteRecurringTask = (sectionId: string, taskId: string) => {
+    if (dbService) {
+      try {
+        dbService.deleteRecurringTask(taskId);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error deleting recurring task from database:', error);
+        deleteRecurringTaskInMemory(sectionId, taskId);
+      }
+    } else {
+      deleteRecurringTaskInMemory(sectionId, taskId);
+    }
+  };
+
+  const deleteRecurringTaskInMemory = (sectionId: string, taskId: string) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        [sectionId]: {
+          ...prev[sectionId as keyof TaskData],
+          recurringTasks: prev[sectionId as keyof TaskData].recurringTasks.filter(task => task.id !== taskId),
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
   const removeCategory = (sectionId: string, category: string) => {
     if (dbService) {
       try {
@@ -381,6 +436,10 @@ export const useTaskManager = () => {
     updateRecurringTask,
     updateTaskStatus,
     updateSubGoalStatus,
+    deleteTask,
+    deleteRecurringTask,
+    deleteTask,
+    deleteRecurringTask,
     addCategory,
     removeCategory,
     getAnalytics,

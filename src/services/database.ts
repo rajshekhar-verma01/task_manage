@@ -179,6 +179,10 @@ class DatabaseService {
     stmt.run(taskId);
   }
 
+  deleteRecurringTask(taskId: string) {
+    const stmt = this.db.prepare('DELETE FROM recurring_tasks WHERE id = ?');
+    stmt.run(taskId);
+  }
   // Recurring task operations
   saveRecurringTask(task: RecurringTask, sectionId: string) {
     const stmt = this.db.prepare(`

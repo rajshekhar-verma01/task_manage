@@ -16,6 +16,8 @@ interface TaskSectionProps {
   onRecurringTaskUpdate: (task: RecurringTask) => void;
   onTaskStatusChange: (taskId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onSubGoalStatusChange: (taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => void;
+  onDeleteTask: (taskId: string) => void;
+  onDeleteRecurringTask: (taskId: string) => void;
   onAddCategory: (category: string) => void;
   onRemoveCategory: (category: string) => void;
 }
@@ -30,6 +32,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   onRecurringTaskUpdate,
   onTaskStatusChange,
   onSubGoalStatusChange,
+  onDeleteTask,
+  onDeleteRecurringTask,
   onAddCategory,
   onRemoveCategory,
 }) => {
@@ -224,6 +228,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                       onStatusChange={onTaskStatusChange}
                       onSubGoalStatusChange={onSubGoalStatusChange}
                       onEdit={handleEditTask}
+                      onDelete={onDeleteTask}
                       sectionType={sectionType}
                     />
                   )
@@ -235,6 +240,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                 onStatusChange={onTaskStatusChange}
                 onSubGoalStatusChange={onSubGoalStatusChange}
                 onEdit={handleEditTask}
+                onDelete={onDeleteTask}
                 sectionType={sectionType}
                 isUpcoming={true}
               />
@@ -262,6 +268,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                     onStatusChange={onTaskStatusChange}
                     onSubGoalStatusChange={onSubGoalStatusChange}
                     onEdit={handleEditRecurringTask}
+                    onDelete={onDeleteRecurringTask}
                     sectionType={sectionType}
                   />
                 ))}
@@ -272,6 +279,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                 onStatusChange={onTaskStatusChange}
                 onSubGoalStatusChange={onSubGoalStatusChange}
                 onEdit={handleEditRecurringTask}
+                onDelete={onDeleteRecurringTask}
                 sectionType={sectionType}
                 isUpcoming={true}
               />
@@ -450,6 +458,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
               onStatusChange={onTaskStatusChange}
               onSubGoalStatusChange={onSubGoalStatusChange}
               onEdit={activeTab === 'recurring' ? handleEditRecurringTask : handleEditTask}
+              onDelete={activeTab === 'recurring' ? onDeleteRecurringTask : onDeleteTask}
               sectionType={sectionType}
             />
           ))}
@@ -460,6 +469,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
           onStatusChange={onTaskStatusChange}
           onSubGoalStatusChange={onSubGoalStatusChange}
           onEdit={activeTab === 'recurring' ? handleEditRecurringTask : handleEditTask}
+          onDelete={activeTab === 'recurring' ? onDeleteRecurringTask : onDeleteTask}
           sectionType={sectionType}
         />
       )}

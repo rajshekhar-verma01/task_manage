@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Calendar, Tag, CheckCircle, Play, Circle, ArrowRight, User } from 'lucide-react';
+import { Clock, Calendar, Tag, CheckCircle, Play, Circle, ArrowRight, User, Trash2 } from 'lucide-react';
 import { Task, PersonalDevelopmentTask, RecurringTask, SubGoal } from '../types';
 
 interface TaskListProps {
@@ -7,6 +7,7 @@ interface TaskListProps {
   onStatusChange: (taskId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onSubGoalStatusChange?: (taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onEdit: (task: Task | PersonalDevelopmentTask) => void;
+  onDelete: (taskId: string) => void;
   sectionType: string;
   isUpcoming?: boolean;
 }
@@ -16,6 +17,7 @@ const TaskList: React.FC<TaskListProps> = ({
   onStatusChange, 
   onSubGoalStatusChange, 
   onEdit, 
+  onDelete,
   sectionType,
   isUpcoming = false
 }) => {
@@ -227,12 +229,21 @@ const TaskList: React.FC<TaskListProps> = ({
                       </button>
                     )}
                     {!task.parentTaskId && !isUpcoming && (
-                      <button
-                        onClick={() => onEdit(task)}
-                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                      >
-                        Edit
-                      </button>
+                      <>
+                        <button
+                          onClick={() => onEdit(task)}
+                          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => onDelete(task.id)}
+                          className="flex items-center space-x-1 text-sm text-red-600 hover:text-red-800 font-medium"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
+                        </button>
+                      </>
                     )}
                   </div>
                 </td>
