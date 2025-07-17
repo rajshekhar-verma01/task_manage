@@ -3,6 +3,7 @@ export interface ElectronAPI {
   loadNotificationSettings: () => Promise<any>;
   showNotification: (data: { title: string; body: string; tasks?: any[] }) => Promise<{ success: boolean }>;
   onCheckDueTasks: (callback: () => void) => void;
+  updateNotificationIntervals: (allTasks: any) => Promise<{ success: boolean }>;
 }
 
 declare global {

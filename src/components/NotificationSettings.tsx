@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Clock, Save, X } from 'lucide-react';
+import { Bell, Clock, Save, X, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface NotificationSettingsProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+interface CategoryNotificationConfig {
+  enabled: boolean;
+  interval: number;
+  unit: 'minutes' | 'hours';
+}
+
 interface NotificationConfig {
   enabled: boolean;
-  interval: number; // in minutes
+  interval: number;
+  unit: 'minutes' | 'hours';
+  categories: { [categoryName: string]: CategoryNotificationConfig };
 }
 
 interface NotificationSettings {
@@ -20,13 +28,40 @@ interface NotificationSettings {
 
 const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onClose }) => {
   const [settings, setSettings] = useState<NotificationSettings>({
-    household: { enabled: false, interval: 30 },
-    personal: { enabled: false, interval: 30 },
-    official: { enabled: false, interval: 30 },
-    blog: { enabled: false, interval: 30 },
+    household: { 
+      enabled: false, 
+      interval: 30, 
+      unit: 'minutes',
+      categories: {}
+    },
+    personal: { 
+      enabled: false, 
+      interval: 30, 
+      unit: 'minutes',
+      categories: {}
+    },
+    official: { 
+      enabled: false, 
+      interval: 30, 
+      unit: 'minutes',
+      categories: {}
+    },
+    blog: { 
+      enabled: false, 
+      interval: 30, 
+      unit: 'minutes',
+      categories: {}
+    },
   });
 
+  const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [availableCategories, setAvailableCategories] = useState<{ [key: string]: string[] }>({
+    household: ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+    personal: ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+    official: ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+    blog: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
+  });
 
   const sections = [
     { id: 'household', name: 'Household', color: 'bg-green-500' },
@@ -46,7 +81,20 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
       if (window.electronAPI) {
         const savedSettings = await window.electronAPI.loadNotificationSettings();
         if (savedSettings && Object.keys(savedSettings).length > 0) {
-          setSettings(savedSettings);
+          // Migrate old settings format to new format
+          const migratedSettings = { ...settings };
+          Object.keys(savedSettings).forEach(sectionId => {
+            const sectionSettings = savedSettings[sectionId];
+            if (sectionSettings) {
+              migratedSettings[sectionId as keyof NotificationSettings] = {
+                enabled: sectionSettings.enabled || false,
+                interval: sectionSettings.interval || 30,
+                unit: sectionSettings.unit || 'minutes',
+                categories: sectionSettings.categories || {}
+              };
+            }
+          });
+          setSettings(migratedSettings);
         }
       }
     } catch (error) {
@@ -72,7 +120,7 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
     }
   };
 
-  const updateSectionSetting = (sectionId: string, field: keyof NotificationConfig, value: boolean | number) => {
+  const updateSectionSetting = (sectionId: string, field: keyof NotificationConfig, value: boolean | number | string) => {
     setSettings(prev => ({
       ...prev,
       [sectionId]: {
@@ -82,22 +130,42 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
     }));
   };
 
-  const intervalOptions = [
-    { value: 5, label: '5 minutes' },
-    { value: 10, label: '10 minutes' },
-    { value: 15, label: '15 minutes' },
-    { value: 30, label: '30 minutes' },
-    { value: 60, label: '1 hour' },
-    { value: 120, label: '2 hours' },
-    { value: 240, label: '4 hours' },
-    { value: 480, label: '8 hours' },
-  ];
+  const updateCategorySetting = (sectionId: string, categoryName: string, field: keyof CategoryNotificationConfig, value: boolean | number | string) => {
+    setSettings(prev => ({
+      ...prev,
+      [sectionId]: {
+        ...prev[sectionId as keyof NotificationSettings],
+        categories: {
+          ...prev[sectionId as keyof NotificationSettings].categories,
+          [categoryName]: {
+            ...prev[sectionId as keyof NotificationSettings].categories[categoryName] || { enabled: false, interval: 30, unit: 'minutes' },
+            [field]: value,
+          }
+        }
+      },
+    }));
+  };
+
+  const toggleSectionExpansion = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const getIntervalInMinutes = (interval: number, unit: 'minutes' | 'hours') => {
+    return unit === 'hours' ? interval * 60 : interval;
+  };
+
+  const formatInterval = (interval: number, unit: 'minutes' | 'hours') => {
+    return `${interval} ${unit}`;
+  };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-2">
             <Bell className="w-6 h-6 text-blue-500" />
@@ -116,54 +184,150 @@ const NotificationSettings: React.FC<NotificationSettingsProps> = ({ isOpen, onC
             <Bell className="w-5 h-5 text-blue-600" />
             <h3 className="font-medium text-blue-800">Desktop Notifications</h3>
           </div>
-          <p className="text-sm text-blue-700">
+          <p className="text-sm text-blue-700 mb-2">
             Get notified about due tasks at regular intervals. Notifications will appear even when the app is minimized.
+          </p>
+          <p className="text-sm text-blue-600">
+            <strong>Priority:</strong> Category-level settings override section-level settings. If no category setting is configured, the section setting will be used.
           </p>
         </div>
 
         <div className="space-y-6">
           {sections.map((section) => {
             const sectionSettings = settings[section.id as keyof NotificationSettings];
+            const isExpanded = expandedSections[section.id];
+            const categories = availableCategories[section.id] || [];
+            
             return (
-              <div key={section.id} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-4 h-4 rounded ${section.color}`}></div>
-                    <h3 className="font-semibold text-gray-800">{section.name}</h3>
-                  </div>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={sectionSettings.enabled}
-                      onChange={(e) => updateSectionSetting(section.id, 'enabled', e.target.checked)}
-                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700">Enable notifications</span>
-                  </label>
-                </div>
-
-                {sectionSettings.enabled && (
-                  <div className="ml-7">
+              <div key={section.id} className="border rounded-lg">
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <Clock className="w-4 h-4 text-gray-500" />
-                      <label className="text-sm text-gray-700">Notification interval:</label>
-                      <select
-                        value={sectionSettings.interval}
-                        onChange={(e) => updateSectionSetting(section.id, 'interval', parseInt(e.target.value))}
-                        className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      >
-                        {intervalOptions.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      <div className={`w-4 h-4 rounded ${section.color}`}></div>
+                      <h3 className="font-semibold text-gray-800">{section.name}</h3>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2 ml-7">
-                      You'll be notified every {sectionSettings.interval} minutes about due tasks in this section
-                    </p>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={sectionSettings.enabled}
+                        onChange={(e) => updateSectionSetting(section.id, 'enabled', e.target.checked)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">Enable notifications</span>
+                    </label>
                   </div>
-                )}
+
+                  {sectionSettings.enabled && (
+                    <div className="ml-7 mb-4">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <label className="text-sm text-gray-700">Section-level interval:</label>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max="999"
+                            value={sectionSettings.interval}
+                            onChange={(e) => updateSectionSetting(section.id, 'interval', parseInt(e.target.value) || 1)}
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          />
+                          <select
+                            value={sectionSettings.unit}
+                            onChange={(e) => updateSectionSetting(section.id, 'unit', e.target.value as 'minutes' | 'hours')}
+                            className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          >
+                            <option value="minutes">Minutes</option>
+                            <option value="hours">Hours</option>
+                          </select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 ml-7">
+                        Default notification every {formatInterval(sectionSettings.interval, sectionSettings.unit)} for this section
+                      </p>
+                    </div>
+                  )}
+
+                  {sectionSettings.enabled && categories.length > 0 && (
+                    <div className="ml-7">
+                      <button
+                        onClick={() => toggleSectionExpansion(section.id)}
+                        className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800 mb-3"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-4 h-4" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4" />
+                        )}
+                        <span>Category-specific settings ({categories.length} categories)</span>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="space-y-3 ml-6 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-xs text-gray-600 mb-3">
+                            Configure different notification intervals for specific categories. Leave unchecked to use section-level settings.
+                          </p>
+                          {categories.map((categoryName) => {
+                            const categorySettings = sectionSettings.categories[categoryName] || { 
+                              enabled: false, 
+                              interval: 30, 
+                              unit: 'minutes' as const 
+                            };
+                            
+                            return (
+                              <div key={categoryName} className="border rounded-lg p-3 bg-white">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-gray-700">{categoryName}</span>
+                                  <label className="flex items-center space-x-2">
+                                    <input
+                                      type="checkbox"
+                                      checked={categorySettings.enabled}
+                                      onChange={(e) => updateCategorySetting(section.id, categoryName, 'enabled', e.target.checked)}
+                                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                    <span className="text-sm text-gray-600">Custom interval</span>
+                                  </label>
+                                </div>
+
+                                {categorySettings.enabled && (
+                                  <div className="ml-4">
+                                    <div className="flex items-center space-x-2">
+                                      <Clock className="w-3 h-3 text-gray-400" />
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="999"
+                                        value={categorySettings.interval}
+                                        onChange={(e) => updateCategorySetting(section.id, categoryName, 'interval', parseInt(e.target.value) || 1)}
+                                        className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+                                      />
+                                      <select
+                                        value={categorySettings.unit}
+                                        onChange={(e) => updateCategorySetting(section.id, categoryName, 'unit', e.target.value as 'minutes' | 'hours')}
+                                        className="px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
+                                      >
+                                        <option value="minutes">Minutes</option>
+                                        <option value="hours">Hours</option>
+                                      </select>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Notify every {formatInterval(categorySettings.interval, categorySettings.unit)} for {categoryName} tasks
+                                    </p>
+                                  </div>
+                                )}
+
+                                {!categorySettings.enabled && (
+                                  <p className="text-xs text-gray-500 ml-4">
+                                    Using section default: {formatInterval(sectionSettings.interval, sectionSettings.unit)}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

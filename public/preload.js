@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('check-due-tasks', callback);
     return () => ipcRenderer.removeListener('check-due-tasks', callback);
   },
+  updateNotificationIntervals: (allTasks) => ipcRenderer.invoke('update-notification-intervals', allTasks),
 });

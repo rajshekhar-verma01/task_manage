@@ -86,6 +86,13 @@ export const useTaskManager = () => {
     };
   }, []);
 
+  // Update notification intervals when tasks change
+  useEffect(() => {
+    if (window.electronAPI && Object.keys(tasks).length > 0) {
+      window.electronAPI.updateNotificationIntervals(tasks);
+    }
+  }, [tasks]);
+
   const loadFromLocalStorage = () => {
     const savedTasks = localStorage.getItem('taskManagerData');
     if (savedTasks) {

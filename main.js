@@ -60,6 +60,119 @@ const showDesktopNotification = (title, body, tasks = []) => {
   }
 };
 
+// Check for due tasks in a specific section
+const checkDueTasksForSection = (sectionId, config, sectionTasks) => {
+  if (!sectionTasks || !mainWindow) return;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const dueTasks = [];
+  
+  // Check regular tasks
+  if (sectionTasks.tasks) {
+    sectionTasks.tasks.forEach(task => {
+      if (task.status !== 'completed') {
+        const dueDate = new Date(task.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        if (dueDate.getTime() <= today.getTime()) {
+          // Only include if no category-specific setting or category setting doesn't exist
+          const categoryConfig = config.categories && config.categories[task.category];
+          if (!categoryConfig || !categoryConfig.enabled) {
+            dueTasks.push(task);
+          }
+        }
+      }
+    });
+  }
+  
+  // Check recurring tasks
+  if (sectionTasks.recurringTasks) {
+    sectionTasks.recurringTasks.forEach(task => {
+      if (task.status !== 'completed') {
+        const nextDate = new Date(task.nextOccurrence);
+        nextDate.setHours(0, 0, 0, 0);
+        
+        if (nextDate.getTime() <= today.getTime()) {
+          const categoryConfig = config.categories && config.categories[task.category];
+          if (!categoryConfig || !categoryConfig.enabled) {
+            dueTasks.push(task);
+          }
+        }
+      }
+    });
+  }
+  
+  if (dueTasks.length > 0) {
+    const sectionNames = {
+      household: 'Household',
+      personal: 'Personal Development',
+      official: 'Official Work',
+      blog: 'Blog'
+    };
+    
+    const title = `${dueTasks.length} ${sectionNames[sectionId]} Task${dueTasks.length > 1 ? 's' : ''} Due`;
+    const body = dueTasks.slice(0, 3).map(task => `• ${task.title}`).join('\n') + 
+                 (dueTasks.length > 3 ? `\n...and ${dueTasks.length - 3} more` : '');
+    
+    showDesktopNotification(title, body, dueTasks);
+  }
+};
+
+// Check for due tasks in a specific category
+const checkDueTasksForCategory = (sectionId, categoryName, categoryConfig, sectionTasks) => {
+  if (!sectionTasks || !mainWindow) return;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const dueTasks = [];
+  
+  // Check regular tasks for this category
+  if (sectionTasks.tasks) {
+    sectionTasks.tasks.forEach(task => {
+      if (task.status !== 'completed' && task.category === categoryName) {
+        const dueDate = new Date(task.dueDate);
+        dueDate.setHours(0, 0, 0, 0);
+        
+        if (dueDate.getTime() <= today.getTime()) {
+          dueTasks.push(task);
+        }
+      }
+    });
+  }
+  
+  // Check recurring tasks for this category
+  if (sectionTasks.recurringTasks) {
+    sectionTasks.recurringTasks.forEach(task => {
+      if (task.status !== 'completed' && task.category === categoryName) {
+        const nextDate = new Date(task.nextOccurrence);
+        nextDate.setHours(0, 0, 0, 0);
+        
+        if (nextDate.getTime() <= today.getTime()) {
+          dueTasks.push(task);
+        }
+      }
+    });
+  }
+  
+  if (dueTasks.length > 0) {
+    const sectionNames = {
+      household: 'Household',
+      personal: 'Personal Development',
+      official: 'Official Work',
+      blog: 'Blog'
+    };
+    
+    const title = `${dueTasks.length} ${categoryName} Task${dueTasks.length > 1 ? 's' : ''} Due (${sectionNames[sectionId]})`;
+    const body = dueTasks.slice(0, 3).map(task => `• ${task.title}`).join('\n') + 
+                 (dueTasks.length > 3 ? `\n...and ${dueTasks.length - 3} more` : '');
+    
+    showDesktopNotification(title, body, dueTasks);
+  }
+};
+
 // Check for due tasks and show notifications
 const checkDueTasks = () => {
   if (mainWindow && mainWindow.webContents) {
@@ -68,18 +181,38 @@ const checkDueTasks = () => {
 };
 
 // Setup notification intervals
-const setupNotificationIntervals = (settings) => {
+const setupNotificationIntervals = (settings, allTasks = {}) => {
   // Clear existing intervals
   notificationIntervals.forEach(interval => clearInterval(interval));
   notificationIntervals.clear();
 
   Object.entries(settings).forEach(([sectionId, config]) => {
     if (config.enabled && config.interval > 0) {
-      const intervalMs = config.interval * 60 * 1000; // Convert minutes to milliseconds
+      // Convert to minutes based on unit
+      const intervalInMinutes = config.unit === 'hours' ? config.interval * 60 : config.interval;
+      const intervalMs = intervalInMinutes * 60 * 1000; // Convert to milliseconds
+      
       const intervalId = setInterval(() => {
-        checkDueTasks();
+        checkDueTasksForSection(sectionId, config, allTasks[sectionId]);
       }, intervalMs);
       notificationIntervals.set(sectionId, intervalId);
+      
+      // Setup category-specific intervals
+      if (config.categories) {
+        Object.entries(config.categories).forEach(([categoryName, categoryConfig]) => {
+          if (categoryConfig.enabled && categoryConfig.interval > 0) {
+            const categoryIntervalInMinutes = categoryConfig.unit === 'hours' ? 
+              categoryConfig.interval * 60 : categoryConfig.interval;
+            const categoryIntervalMs = categoryIntervalInMinutes * 60 * 1000;
+            
+            const categoryIntervalId = setInterval(() => {
+              checkDueTasksForCategory(sectionId, categoryName, categoryConfig, allTasks[sectionId]);
+            }, categoryIntervalMs);
+            
+            notificationIntervals.set(`${sectionId}-${categoryName}`, categoryIntervalId);
+          }
+        });
+      }
     }
   });
 };
@@ -168,7 +301,7 @@ function createWindow() {
     
     // Load and setup notification settings
     const settings = loadNotificationSettings();
-    setupNotificationIntervals(settings);
+    setupNotificationIntervals(settings, {});
     
     // Show startup popup after a short delay
     setTimeout(() => {
@@ -215,7 +348,9 @@ process.on('unhandledRejection', (reason, promise) => {
 // IPC handlers for notifications
 ipcMain.handle('save-notification-settings', (event, settings) => {
   saveNotificationSettings(settings);
-  setupNotificationIntervals(settings);
+  // We'll need to get current tasks data for proper interval setup
+  // For now, setup with empty data - intervals will be updated when tasks are available
+  setupNotificationIntervals(settings, {});
   return { success: true };
 });
 
@@ -225,6 +360,13 @@ ipcMain.handle('load-notification-settings', () => {
 
 ipcMain.handle('show-notification', (event, { title, body, tasks }) => {
   showDesktopNotification(title, body, tasks);
+  return { success: true };
+});
+
+// Handle task data updates for notification intervals
+ipcMain.handle('update-notification-intervals', (event, allTasks) => {
+  const settings = loadNotificationSettings();
+  setupNotificationIntervals(settings, allTasks);
   return { success: true };
 });
 
