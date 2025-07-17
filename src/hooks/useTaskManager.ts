@@ -233,7 +233,7 @@ export const useTaskManager = () => {
             }
             
             return task;
-          });
+          };
         }
       });
       
