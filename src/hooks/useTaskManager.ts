@@ -595,7 +595,7 @@ export const useTaskManager = () => {
     };
 
     const generateBlogAnalytics = (blogSection: BlogSection): BlogAnalytics => {
-      const entries = blogSection.entries;
+      const entries = blogSection.entries || [];
       
       const totalEntries = entries.length;
       const toReadEntries = entries.filter(e => e.status === 'to-read').length;
