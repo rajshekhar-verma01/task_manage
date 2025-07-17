@@ -167,6 +167,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       const dateA = new Date(a.nextOccurrence);
       const dateB = new Date(b.nextOccurrence);
       return dateA.getTime() - dateB.getTime();
+    });
+    
+    return { general: upcomingGeneral, recurring: upcomingRecurring };
+  };
+
   const applyFiltersToUpcoming = (upcomingData: { general: (Task | SubGoal)[], recurring: RecurringTask[] }) => {
     const filterTasks = (taskList: any[]) => {
       return taskList.filter(task => {
@@ -179,7 +184,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         if (filters.category !== 'all' && task.category !== filters.category) {
           return false;
         }
-    });
+
         // Due date filter for upcoming tasks
         if (filters.dueDateRange !== 'all') {
           const taskDate = new Date(task.dueDate || task.nextOccurrence);
@@ -206,11 +211,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({
               break;
           }
         }
-    return { general: upcomingGeneral, recurring: upcomingRecurring };
+
         return true;
       });
     };
-  };
+    
     return {
       general: filterTasks(upcomingData.general),
       recurring: filterTasks(upcomingData.recurring)
@@ -237,7 +242,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   ];
 
   const renderUpcomingContent = () => {
-    const upcomingData = getFilteredTasks() as { general: (Task | SubGoal)[], recurring: RecurringTask[] };
+    const upcomingData = getUpcomingTasks();
     
     return (
       <div className="space-y-8">
@@ -292,12 +297,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             )
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <div className="text-gray-400 text-sm">
-                {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
-                  ? 'No upcoming general tasks match the current filters' 
-                  : 'No upcoming general tasks'
-                }
-              </div>
+              <div className="text-gray-400 text-sm">No upcoming general tasks</div>
             </div>
           )}
         </div>
@@ -336,12 +336,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             )
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <div className="text-gray-400 text-sm">
-                {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
-                  ? 'No upcoming recurring tasks match the current filters' 
-                  : 'No upcoming recurring tasks'
-                }
-              </div>
+              <div className="text-gray-400 text-sm">No upcoming recurring tasks</div>
             </div>
           )}
         </div>
