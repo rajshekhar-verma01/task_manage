@@ -159,6 +159,18 @@ export const useTaskManager = () => {
   };
 
   const updateRecurringTask = (sectionId: string, task: RecurringTask) => {
+    // Auto-set status based on start date for new recurring tasks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    
+    // Only auto-set status if it's a new task (no existing ID in database/memory)
+    const existingTask = tasks[sectionId as keyof TaskData]?.recurringTasks.find(t => t.id === task.id);
+    if (!existingTask) {
+      task.status = taskStartDate <= today ? 'in-progress' : 'todo';
+    }
+    
     if (dbService) {
       try {
         dbService.saveRecurringTask(task, sectionId);
@@ -173,6 +185,18 @@ export const useTaskManager = () => {
   };
 
   const updateRecurringTaskInMemory = (sectionId: string, task: RecurringTask) => {
+    // Auto-set status based on start date for new recurring tasks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    
+    // Only auto-set status if it's a new task
+    const existingTask = tasks[sectionId as keyof TaskData]?.recurringTasks.find(t => t.id === task.id);
+    if (!existingTask) {
+      task.status = taskStartDate <= today ? 'in-progress' : 'todo';
+    }
+    
     setTasks(prev => {
       const newTasks = {
         ...prev,

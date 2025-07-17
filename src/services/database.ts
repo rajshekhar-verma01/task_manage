@@ -185,6 +185,18 @@ class DatabaseService {
   }
   // Recurring task operations
   saveRecurringTask(task: RecurringTask, sectionId: string) {
+    // Auto-set status based on start date for new recurring tasks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const taskStartDate = new Date(task.startDate);
+    taskStartDate.setHours(0, 0, 0, 0);
+    
+    // Check if task already exists
+    const existingTask = this.db.prepare('SELECT id FROM recurring_tasks WHERE id = ?').get(task.id);
+    if (!existingTask) {
+      task.status = taskStartDate <= today ? 'in-progress' : 'todo';
+    }
+    
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO recurring_tasks (
         id, title, description, status, category, section_id,

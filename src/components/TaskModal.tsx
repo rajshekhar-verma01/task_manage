@@ -114,11 +114,19 @@ const TaskModal: React.FC<TaskModalProps> = ({
           break;
       }
       
+      // Auto-set status based on start date
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const taskStartDate = new Date(formData.startDate);
+      taskStartDate.setHours(0, 0, 0, 0);
+      
+      const autoStatus = taskStartDate <= today ? 'in-progress' : 'todo';
+      
       const recurringTask = {
         id: task?.id || Date.now().toString(),
         title: formData.title,
         description: formData.description,
-        status: formData.status,
+        status: task?.id ? formData.status : autoStatus, // Use auto status for new tasks, keep existing for edits
         category: formData.category,
         createdAt: task?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
