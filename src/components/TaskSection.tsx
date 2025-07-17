@@ -130,6 +130,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     // Add upcoming general tasks
     const safeTasks = Array.isArray(tasks) ? tasks : [];
     const upcomingTasks = safeTasks.filter(task => {
+      if (!task || !task.dueDate) return false;
       const dueDate = new Date(task.dueDate);
       return dueDate > now && task.status !== 'completed';
     });
@@ -138,6 +139,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     // Add upcoming recurring tasks
     const safeRecurringTasks = Array.isArray(recurringTasks) ? recurringTasks : [];
     upcomingRecurring = safeRecurringTasks.filter(task => {
+      if (!task || !task.nextOccurrence) return false;
       const nextDate = new Date(task.nextOccurrence);
       const endDate = task.endDate ? new Date(task.endDate) : null;
       return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
@@ -146,9 +148,11 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     // Add upcoming sub goals from personal development tasks
     if (sectionType === 'personal') {
       safeTasks.forEach(task => {
+        if (!task) return;
         const personalTask = task as PersonalDevelopmentTask;
         if (Array.isArray(personalTask.subGoals)) {
           personalTask.subGoals.forEach(subGoal => {
+            if (!subGoal || !subGoal.dueDate) return;
             const dueDate = new Date(subGoal.dueDate);
             if (dueDate > now && subGoal.status !== 'completed') {
               upcomingGeneral.push({
@@ -164,12 +168,14 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     
     // Sort both arrays
     upcomingGeneral.sort((a, b) => {
+      if (!a || !b || !a.dueDate || !b.dueDate) return 0;
       const dateA = new Date(a.dueDate);
       const dateB = new Date(b.dueDate);
       return dateA.getTime() - dateB.getTime();
     });
     
     upcomingRecurring.sort((a, b) => {
+      if (!a || !b || !a.nextOccurrence || !b.nextOccurrence) return 0;
       const dateA = new Date(a.nextOccurrence);
       const dateB = new Date(b.nextOccurrence);
       return dateA.getTime() - dateB.getTime();

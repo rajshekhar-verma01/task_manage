@@ -52,10 +52,75 @@ export const useTaskManager = () => {
     }
   }, []);
 
+  // Helper function to ensure safe data structure
+  const ensureSafeTaskData = (data: any): TaskData => {
+    const defaultTaskData: TaskData = {
+      household: {
+        id: 'household',
+        name: 'Household Work',
+        color: 'green',
+        tasks: [],
+        recurringTasks: [],
+        categories: ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+      },
+      personal: {
+        id: 'personal',
+        name: 'Personal Development',
+        color: 'blue',
+        tasks: [],
+        recurringTasks: [],
+        categories: ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+      },
+      official: {
+        id: 'official',
+        name: 'Official Work',
+        color: 'purple',
+        tasks: [],
+        recurringTasks: [],
+        categories: ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+      },
+      blog: {
+        id: 'blog',
+        name: 'Blog & Learning',
+        color: 'orange',
+        entries: [],
+        categories: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
+      },
+    };
+
+    if (!data || typeof data !== 'object') {
+      return defaultTaskData;
+    }
+
+    const safeData = { ...defaultTaskData };
+
+    // Safely merge each section
+    ['household', 'personal', 'official'].forEach(sectionId => {
+      if (data[sectionId] && typeof data[sectionId] === 'object') {
+        safeData[sectionId as keyof TaskData] = {
+          ...defaultTaskData[sectionId as keyof TaskData],
+          tasks: Array.isArray(data[sectionId].tasks) ? data[sectionId].tasks : [],
+          recurringTasks: Array.isArray(data[sectionId].recurringTasks) ? data[sectionId].recurringTasks : [],
+          categories: Array.isArray(data[sectionId].categories) ? data[sectionId].categories : defaultTaskData[sectionId as keyof TaskData].categories,
+        };
+      }
+    });
+
+    // Handle blog section separately
+    if (data.blog && typeof data.blog === 'object') {
+      safeData.blog = {
+        ...defaultTaskData.blog,
+        entries: Array.isArray(data.blog.entries) ? data.blog.entries : [],
+        categories: Array.isArray(data.blog.categories) ? data.blog.categories : defaultTaskData.blog.categories,
+      };
+    }
+
+    return safeData;
+  };
   const loadFromDatabase = async () => {
     try {
       const sections = ['household', 'personal', 'official', 'blog'];
-      const loadedData = { ...tasks };
+      const loadedData = ensureSafeTaskData({});
 
       for (const sectionId of sections) {
         if (sectionId === 'blog') {
@@ -104,41 +169,7 @@ export const useTaskManager = () => {
     if (savedTasks) {
       try {
         const parsedTasks = JSON.parse(savedTasks);
-        
-        // Ensure all required arrays exist with defaults and proper structure
-        const sanitizedTasks = {
-          household: {
-            id: 'household',
-            name: 'Household Work',
-            color: 'green',
-            tasks: Array.isArray(parsedTasks.household?.tasks) ? parsedTasks.household.tasks : [],
-            recurringTasks: Array.isArray(parsedTasks.household?.recurringTasks) ? parsedTasks.household.recurringTasks : [],
-            categories: Array.isArray(parsedTasks.household?.categories) ? parsedTasks.household.categories : ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
-          },
-          personal: {
-            id: 'personal',
-            name: 'Personal Development',
-            color: 'blue',
-            tasks: Array.isArray(parsedTasks.personal?.tasks) ? parsedTasks.personal.tasks : [],
-            recurringTasks: Array.isArray(parsedTasks.personal?.recurringTasks) ? parsedTasks.personal.recurringTasks : [],
-            categories: Array.isArray(parsedTasks.personal?.categories) ? parsedTasks.personal.categories : ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
-          },
-          official: {
-            id: 'official',
-            name: 'Official Work',
-            color: 'purple',
-            tasks: Array.isArray(parsedTasks.official?.tasks) ? parsedTasks.official.tasks : [],
-            recurringTasks: Array.isArray(parsedTasks.official?.recurringTasks) ? parsedTasks.official.recurringTasks : [],
-            categories: Array.isArray(parsedTasks.official?.categories) ? parsedTasks.official.categories : ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
-          },
-          blog: {
-            id: 'blog',
-            name: 'Blog & Learning',
-            color: 'orange',
-            entries: Array.isArray(parsedTasks.blog?.entries) ? parsedTasks.blog.entries : [],
-            categories: Array.isArray(parsedTasks.blog?.categories) ? parsedTasks.blog.categories : ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
-          },
-        };
+        const sanitizedTasks = ensureSafeTaskData(parsedTasks);
         
         setTasks(sanitizedTasks);
         
@@ -148,7 +179,12 @@ export const useTaskManager = () => {
         }, 100);
       } catch (error) {
         console.error('Error loading tasks from localStorage:', error);
+        // Set default safe data if parsing fails
+        setTasks(ensureSafeTaskData({}));
       }
+    } else {
+      // Set default safe data if no saved data exists
+      setTasks(ensureSafeTaskData({}));
     }
   };
 
@@ -166,15 +202,15 @@ export const useTaskManager = () => {
     setTasks(prev => {
       const newTasks = { ...prev };
       
-      Object.keys(newTasks).forEach(sectionId => {
+    const safeTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.tasks) ? tasks[sectionId as keyof TaskData].tasks : [];
         const section = newTasks[sectionId as keyof TaskData];
         
-        if (section && Array.isArray(section.recurringTasks)) {
+        if (section && 'recurringTasks' in section && Array.isArray(section.recurringTasks)) {
           section.recurringTasks = section.recurringTasks.map(task => {
             const startDate = new Date(task.startDate);
             startDate.setHours(0, 0, 0, 0);
             
-            // If start date is today or in the past, and status is 'todo', change to 'in-progress'
+    const safeRecurringTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.recurringTasks) ? tasks[sectionId as keyof TaskData].recurringTasks : [];
             if (startDate <= today && task.status === 'todo') {
               hasUpdates = true;
               const updatedTask = {
@@ -182,10 +218,10 @@ export const useTaskManager = () => {
                 status: 'in-progress' as const,
                 updatedAt: new Date().toISOString(),
               };
-              
-              if (dbService) {
+    if (tasks.personal && Array.isArray(tasks.personal.tasks)) {
+      tasks.personal.tasks.forEach(task => {
                 try {
-                  dbService.saveRecurringTask(updatedTask, sectionId);
+                  window.electronAPI.db.saveRecurringTask(updatedTask, sectionId);
                 } catch (error) {
                   console.error('Error updating recurring task status in database:', error);
                 }
