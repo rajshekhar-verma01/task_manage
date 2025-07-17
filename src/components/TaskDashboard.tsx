@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, RotateCcw, Calendar, Bell, Filter, Plus, CheckCircle, Clock, Edit, Trash2 } from 'lucide-react';
+import { Home, RotateCcw, Calendar, Bell, Filter, Plus, RefreshCw, CalendarPlus, CheckCircle, Clock, Edit, Trash2 } from 'lucide-react';
 import { Task, PersonalDevelopmentTask, Analytics } from '../types';
 import TaskModal from './TaskModal';
 
@@ -129,26 +129,26 @@ const TaskDashboard: React.FC<TaskDashboardProps> = ({
         </div>
       </div>
 
-      <div className="p-6">
-        {/* Section Selector */}
-        <div className="mb-6">
-          <div className="flex space-x-2">
-            {sections.map((section) => (
-              <button
-                key={section.id}
-                onClick={() => setActiveSection(section.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                  activeSection === section.id
-                    ? `${section.color} text-white`
-                    : 'text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                {section.name}
-              </button>
-            ))}
-          </div>
+      {/* Section Selector */}
+      <div className="bg-white border-b border-gray-200 px-6 py-2">
+        <div className="flex space-x-2">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeSection === section.id
+                  ? `${section.color} text-white`
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {section.name}
+            </button>
+          ))}
         </div>
+      </div>
 
+      <div className="p-6">
         {/* Statistics Cards */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -246,6 +246,16 @@ const TaskDashboard: React.FC<TaskDashboardProps> = ({
             >
               <Plus className="w-4 h-4" />
               <span>Add Task</span>
+            </button>
+
+            <button className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <RefreshCw className="w-4 h-4" />
+              <span>Sync to Upcoming</span>
+            </button>
+
+            <button className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+              <CalendarPlus className="w-4 h-4" />
+              <span>Calendar Invite</span>
             </button>
           </div>
         </div>
