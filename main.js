@@ -1,7 +1,9 @@
 const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const isDev = process.env.NODE_ENV === 'development';
+
+// Check if we're in development mode
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 let mainWindow;
 
@@ -27,7 +29,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: true
+      webSecurity: true,
+      preload: path.join(__dirname, 'preload.js') // We'll create this if needed
     },
     icon: path.join(__dirname, 'public/icon.png'),
     titleBarStyle: 'default',
@@ -35,20 +38,30 @@ function createWindow() {
   });
 
   // Load the app
-  const startUrl = isDev 
-    ? 'http://localhost:5173' 
-    : `file://${path.join(__dirname, './dist/index.html')}`;
-  
-  mainWindow.loadURL(startUrl);
+  if (isDev) {
+    // Development mode - load from Vite dev server
+    mainWindow.loadURL('http://localhost:5173');
+    
+    // Open DevTools in development
+    mainWindow.webContents.openDevTools();
+    
+    // Handle dev server not ready
+    mainWindow.webContents.on('did-fail-load', () => {
+      console.log('Failed to load dev server, retrying in 1 second...');
+      setTimeout(() => {
+        mainWindow.reload();
+      }, 1000);
+    });
+  } else {
+    // Production mode - load from built files
+    const indexPath = path.join(__dirname, 'dist', 'index.html');
+    mainWindow.loadFile(indexPath);
+  }
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
-    
-    // Open DevTools in development
-    if (isDev) {
-      mainWindow.webContents.openDevTools();
-    }
+    console.log('Electron app is ready and showing');
   });
 
   // Handle window closed
@@ -58,6 +71,16 @@ function createWindow() {
 
   // Create application menu
   createMenu();
+
+  // Debug: Log when page finishes loading
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Page finished loading');
+  });
+
+  // Debug: Log any console messages from renderer
+  mainWindow.webContents.on('console-message', (event, level, message) => {
+    console.log('Renderer console:', message);
+  });
 }
 
 function createMenu() {
@@ -69,7 +92,9 @@ function createMenu() {
           label: 'New Task',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
-            mainWindow.webContents.send('new-task');
+            if (mainWindow) {
+              mainWindow.webContents.send('new-task');
+            }
           }
         },
         { type: 'separator' },
@@ -121,12 +146,14 @@ function createMenu() {
           label: 'About TaskFlow Pro',
           click: () => {
             const { dialog } = require('electron');
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: 'About TaskFlow Pro',
-              message: 'TaskFlow Pro',
-              detail: 'A comprehensive task management application for organizing your life efficiently.\n\nVersion 1.0.0'
-            });
+            if (mainWindow) {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'About TaskFlow Pro',
+                message: 'TaskFlow Pro',
+                detail: 'A comprehensive task management application for organizing your life efficiently.\n\nVersion 1.0.0'
+              });
+            }
           }
         }
       ]
@@ -164,7 +191,10 @@ function createMenu() {
 }
 
 // App event listeners
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  console.log('Electron app is ready');
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -183,4 +213,16 @@ app.on('web-contents-created', (event, contents) => {
   contents.on('new-window', (event, navigationUrl) => {
     event.preventDefault();
   });
+});
+
+// Handle certificate errors (for development)
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  if (isDev) {
+    // In development, ignore certificate errors
+    event.preventDefault();
+    callback(true);
+  } else {
+    // In production, use default behavior
+    callback(false);
+  }
 });
