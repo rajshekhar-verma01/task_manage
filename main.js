@@ -4,7 +4,6 @@ const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
 const DatabaseService = require('./src/services/database-electron.js');
-const DatabaseService = require('./src/services/database-electron.js');
 
 // Initialize database
 let dbService;
