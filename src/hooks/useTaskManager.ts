@@ -202,7 +202,8 @@ export const useTaskManager = () => {
     setTasks(prev => {
       const newTasks = { ...prev };
       
-    const safeTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.tasks) ? tasks[sectionId as keyof TaskData].tasks : [];
+      ['household', 'personal', 'official'].forEach(sectionId => {
+        const safeTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.tasks) ? tasks[sectionId as keyof TaskData].tasks : [];
         const section = newTasks[sectionId as keyof TaskData];
         
         if (section && 'recurringTasks' in section && Array.isArray(section.recurringTasks)) {
@@ -210,7 +211,7 @@ export const useTaskManager = () => {
             const startDate = new Date(task.startDate);
             startDate.setHours(0, 0, 0, 0);
             
-    const safeRecurringTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.recurringTasks) ? tasks[sectionId as keyof TaskData].recurringTasks : [];
+            const safeRecurringTasks = Array.isArray(tasks[sectionId as keyof TaskData]?.recurringTasks) ? tasks[sectionId as keyof TaskData].recurringTasks : [];
             if (startDate <= today && task.status === 'todo') {
               hasUpdates = true;
               const updatedTask = {
@@ -218,13 +219,14 @@ export const useTaskManager = () => {
                 status: 'in-progress' as const,
                 updatedAt: new Date().toISOString(),
               };
-    if (tasks.personal && Array.isArray(tasks.personal.tasks)) {
-      tasks.personal.tasks.forEach(task => {
-                try {
-                  window.electronAPI.db.saveRecurringTask(updatedTask, sectionId);
-                } catch (error) {
-                  console.error('Error updating recurring task status in database:', error);
-                }
+              if (tasks.personal && Array.isArray(tasks.personal.tasks)) {
+                tasks.personal.tasks.forEach(task => {
+                  try {
+                    window.electronAPI.db.saveRecurringTask(updatedTask, sectionId);
+                  } catch (error) {
+                    console.error('Error updating recurring task status in database:', error);
+                  }
+                });
               }
               
               return updatedTask;
