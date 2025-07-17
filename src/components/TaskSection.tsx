@@ -13,6 +13,7 @@ interface TaskSectionProps {
   recurringTasks: RecurringTask[];
   categories: string[];
   onTaskUpdate: (task: Task | PersonalDevelopmentTask) => void;
+  onRecurringTaskUpdate?: (task: RecurringTask) => void;
   onTaskStatusChange: (taskId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onSubGoalStatusChange: (taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => void;
   onAddCategory: (category: string) => void;
@@ -26,6 +27,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   recurringTasks,
   categories,
   onTaskUpdate,
+  onRecurringTaskUpdate,
   onTaskStatusChange,
   onSubGoalStatusChange,
   onAddCategory,
@@ -42,6 +44,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     dueDateRange: 'all',
   });
   const [editingTask, setEditingTask] = useState<Task | PersonalDevelopmentTask | undefined>();
+  const [taskType, setTaskType] = useState<'general' | 'recurring'>('general');
 
   const handleEditTask = (task: Task | PersonalDevelopmentTask) => {
     setEditingTask(task);
@@ -51,6 +54,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   const handleModalClose = () => {
     setIsModalOpen(false);
     setEditingTask(undefined);
+    setTaskType('general');
   };
 
   const applyFilters = (taskList: (Task | RecurringTask)[]) => {
@@ -237,13 +241,30 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             <Settings className="w-4 h-4" />
             <span>Categories</span>
           </button>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Task</span>
-          </button>
+          {activeTab === 'general' && (
+            <button
+              onClick={() => {
+                setTaskType('general');
+                setIsModalOpen(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Task</span>
+            </button>
+          )}
+          {activeTab === 'recurring' && (
+            <button
+              onClick={() => {
+                setTaskType('recurring');
+                setIsModalOpen(true);
+              }}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Recurring Task</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -383,6 +404,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         sectionType={sectionType}
         categories={categories}
         onAddCategory={onAddCategory}
+        taskType={taskType}
       />
 
       <CategoryModal

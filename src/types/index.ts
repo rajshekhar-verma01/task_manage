@@ -11,7 +11,8 @@ export interface Task {
 
 export interface RecurringTask extends Task {
   startDate: string;
-  recurrenceDays: number;
+  recurrenceValue: number;
+  recurrenceUnit: 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
   nextOccurrence: string;
 }
 

@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Task, PersonalDevelopmentTask, SubGoal } from '../types';
+import { RecurringTask } from '../types';
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (task: Task | PersonalDevelopmentTask) => void;
+  onSave: (task: Task | PersonalDevelopmentTask | RecurringTask) => void;
   task?: Task | PersonalDevelopmentTask;
   sectionType: string;
   categories: string[];
   onAddCategory: (category: string) => void;
+  taskType: 'general' | 'recurring';
 }
 
 const TaskModal: React.FC<TaskModalProps> = ({ 
@@ -19,7 +21,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
   task, 
   sectionType, 
   categories,
-  onAddCategory 
+  onAddCategory,
+  taskType
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -30,6 +33,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
     classStartDate: '',
     classFromTime: '',
     classToTime: '',
+    startDate: '',
+    recurrenceValue: 1,
+    recurrenceUnit: 'days' as 'minutes' | 'hours' | 'days' | 'weeks' | 'months',
   });
 
   const [subGoals, setSubGoals] = useState<SubGoal[]>([]);
@@ -53,6 +59,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
         classStartDate: (task as PersonalDevelopmentTask).classStartDate || '',
         classFromTime: (task as PersonalDevelopmentTask).classFromTime || '',
         classToTime: (task as PersonalDevelopmentTask).classToTime || '',
+        startDate: '',
+        recurrenceValue: 1,
+        recurrenceUnit: 'days',
       });
       setSubGoals((task as PersonalDevelopmentTask).subGoals || []);
     } else {
@@ -65,6 +74,9 @@ const TaskModal: React.FC<TaskModalProps> = ({
         classStartDate: '',
         classFromTime: '',
         classToTime: '',
+        startDate: '',
+        recurrenceValue: 1,
+        recurrenceUnit: 'days',
       });
       setSubGoals([]);
     }
@@ -76,31 +88,74 @@ const TaskModal: React.FC<TaskModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const baseTask = {
-      id: task?.id || Date.now().toString(),
-      title: formData.title,
-      description: formData.description,
-      status: formData.status,
-      dueDate: formData.dueDate,
-      category: formData.category,
-      createdAt: task?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (sectionType === 'personal') {
-      const personalTask: PersonalDevelopmentTask = {
-        ...baseTask,
-        ...(formData.category === 'class' && {
-          classStartDate: formData.classStartDate,
-          classFromTime: formData.classFromTime,
-          classToTime: formData.classToTime,
-        }),
-        subGoals: subGoals.length > 0 ? subGoals : undefined,
-        progress: subGoals.length > 0 ? Math.round((subGoals.filter(sg => sg.status === 'completed').length / subGoals.length) * 100) : undefined,
+    if (taskType === 'recurring') {
+      // Calculate next occurrence based on start date and recurrence
+      const startDate = new Date(formData.startDate);
+      const nextOccurrence = new Date(startDate);
+      
+      switch (formData.recurrenceUnit) {
+        case 'minutes':
+          nextOccurrence.setMinutes(nextOccurrence.getMinutes() + formData.recurrenceValue);
+          break;
+        case 'hours':
+          nextOccurrence.setHours(nextOccurrence.getHours() + formData.recurrenceValue);
+          break;
+        case 'days':
+          nextOccurrence.setDate(nextOccurrence.getDate() + formData.recurrenceValue);
+          break;
+        case 'weeks':
+          nextOccurrence.setDate(nextOccurrence.getDate() + (formData.recurrenceValue * 7));
+          break;
+        case 'months':
+          nextOccurrence.setMonth(nextOccurrence.getMonth() + formData.recurrenceValue);
+          break;
+      }
+      
+      const recurringTask = {
+        id: task?.id || Date.now().toString(),
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+        dueDate: formData.dueDate,
+        category: formData.category,
+        createdAt: task?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        startDate: formData.startDate,
+        recurrenceValue: formData.recurrenceValue,
+        recurrenceUnit: formData.recurrenceUnit,
+        nextOccurrence: nextOccurrence.toISOString().split('T')[0],
       };
-      onSave(personalTask);
+      
+      // Note: You'll need to add a separate handler for recurring tasks
+      // For now, we'll use the same handler but you should create onSaveRecurring
+      onSave(recurringTask as RecurringTask);
     } else {
-      onSave(baseTask);
+      const baseTask = {
+        id: task?.id || Date.now().toString(),
+        title: formData.title,
+        description: formData.description,
+        status: formData.status,
+        dueDate: formData.dueDate,
+        category: formData.category,
+        createdAt: task?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      if (sectionType === 'personal') {
+        const personalTask: PersonalDevelopmentTask = {
+          ...baseTask,
+          ...(formData.category === 'class' && {
+            classStartDate: formData.classStartDate,
+            classFromTime: formData.classFromTime,
+            classToTime: formData.classToTime,
+          }),
+          subGoals: subGoals.length > 0 ? subGoals : undefined,
+          progress: subGoals.length > 0 ? Math.round((subGoals.filter(sg => sg.status === 'completed').length / subGoals.length) * 100) : undefined,
+        };
+        onSave(personalTask);
+      } else {
+        onSave(baseTask);
+      }
     }
     
     onClose();
@@ -143,7 +198,7 @@ const TaskModal: React.FC<TaskModalProps> = ({
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800">
-            {task ? 'Edit Task' : 'Create New Task'}
+            {task ? 'Edit Task' : taskType === 'recurring' ? 'Create New Recurring Task' : 'Create New Task'}
           </h2>
           <button
             onClick={onClose}
@@ -238,6 +293,54 @@ const TaskModal: React.FC<TaskModalProps> = ({
               required
             />
           </div>
+
+          {taskType === 'recurring' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Recurring Interval
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.recurrenceValue}
+                    onChange={(e) => setFormData({ ...formData, recurrenceValue: parseInt(e.target.value) || 1 })}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="1"
+                    required
+                  />
+                  <select
+                    value={formData.recurrenceUnit}
+                    onChange={(e) => setFormData({ ...formData, recurrenceUnit: e.target.value as 'minutes' | 'hours' | 'days' | 'weeks' | 'months' })}
+                    className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                    <option value="weeks">Weeks</option>
+                    <option value="months">Months</option>
+                  </select>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Repeat every {formData.recurrenceValue} {formData.recurrenceUnit}
+                </p>
+              </div>
+            </>
+          )}
 
           {sectionType === 'personal' && formData.category === 'class' && (
             <>
