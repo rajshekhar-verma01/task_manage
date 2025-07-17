@@ -11,7 +11,7 @@
     "electron": "electron .",
     "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron . --dev\"",
     "clean": "rm -rf dist-electron && rm -rf dist",
-    "clear-cache": "npx electron-builder install-app-deps --force && npm cache clean --force",
+    "clear-cache": "npx electron-builder install-app-deps && npm cache clean --force",
     "rebuild": "npm run clear-cache && electron-rebuild",
     "prebuild-electron": "npm run clean && npm run build",
     "build-electron": "npm run build && npx electron-builder install-app-deps && electron-builder --publish=never",
