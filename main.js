@@ -2,12 +2,13 @@ const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 
 // Check if we're in development mode
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
 let mainWindow;
 
 function createWindow() {
   console.log('Creating Electron window...');
+  console.log('Development mode:', isDev);
   
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -26,22 +27,26 @@ function createWindow() {
 
   // Load the app
   if (isDev) {
-    console.log('Loading development server...');
-    mainWindow.loadURL('http://localhost:5173');
+    console.log('Loading development server at http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173')
+      .then(() => {
+        console.log('Successfully loaded development server');
+      })
+      .catch((error) => {
+        console.error('Failed to load development server:', error);
+        // Retry after a short delay
+        setTimeout(() => {
+          console.log('Retrying to load development server...');
+          mainWindow.loadURL('http://localhost:5173');
+        }, 2000);
+      });
     
     // Open DevTools in development
     mainWindow.webContents.openDevTools();
-    
-    // Handle dev server not ready
-    mainWindow.webContents.on('did-fail-load', () => {
-      console.log('Failed to load dev server, retrying in 2 seconds...');
-      setTimeout(() => {
-        mainWindow.reload();
-      }, 2000);
-    });
   } else {
     console.log('Loading production build...');
     const indexPath = path.join(__dirname, 'dist', 'index.html');
+    console.log('Index path:', indexPath);
     mainWindow.loadFile(indexPath);
   }
 
@@ -61,14 +66,28 @@ function createWindow() {
     console.log('Page finished loading');
   });
 
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.log('Failed to load:', errorCode, errorDescription);
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.log('Failed to load:', errorCode, errorDescription, 'URL:', validatedURL);
+    
+    // If development server failed, try again
+    if (isDev && validatedURL.includes('localhost:5173')) {
+      console.log('Development server not ready, retrying in 3 seconds...');
+      setTimeout(() => {
+        mainWindow.loadURL('http://localhost:5173');
+      }, 3000);
+    }
+  });
+
+  mainWindow.webContents.on('dom-ready', () => {
+    console.log('DOM is ready');
   });
 }
 
 // App event listeners
 app.whenReady().then(() => {
   console.log('Electron app is ready');
+  console.log('Process arguments:', process.argv);
+  console.log('Environment NODE_ENV:', process.env.NODE_ENV);
   createWindow();
 });
 
