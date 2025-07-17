@@ -33,6 +33,7 @@ function App() {
         recurringTasks={sectionData.recurringTasks}
         categories={sectionData.categories}
         onTaskUpdate={(task) => updateTask(activeSection, task)}
+        onRecurringTaskUpdate={(task) => updateRecurringTask(activeSection, task)}
         onTaskStatusChange={(taskId, status) => updateTaskStatus(activeSection, taskId, status)}
         onSubGoalStatusChange={(taskId, subGoalId, status) => updateSubGoalStatus(activeSection, taskId, subGoalId, status)}
         onAddCategory={(category) => addCategory(activeSection, category)}
