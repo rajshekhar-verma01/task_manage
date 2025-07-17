@@ -124,7 +124,8 @@ export const useTaskManager = () => {
       
       Object.keys(newTasks).forEach(sectionId => {
         const section = newTasks[sectionId as keyof TaskData];
-        if ('recurringTasks' in section) {
+        
+        if (section && Array.isArray(section.recurringTasks)) {
           section.recurringTasks = section.recurringTasks.map(task => {
             const startDate = new Date(task.startDate);
             startDate.setHours(0, 0, 0, 0);
