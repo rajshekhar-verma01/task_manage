@@ -77,7 +77,7 @@ const checkDueTasksForSection = (sectionId, config, sectionTasks) => {
         dueDate.setHours(0, 0, 0, 0);
         
         if (dueDate.getTime() <= today.getTime()) {
-          // Only include if no category-specific setting or category setting doesn't exist
+          // Only include if category doesn't have its own notification enabled
           const categoryConfig = config.categories && config.categories[task.category];
           if (!categoryConfig || !categoryConfig.enabled) {
             dueTasks.push(task);
@@ -95,11 +95,37 @@ const checkDueTasksForSection = (sectionId, config, sectionTasks) => {
         nextDate.setHours(0, 0, 0, 0);
         
         if (nextDate.getTime() <= today.getTime()) {
+          // Only include if category doesn't have its own notification enabled
           const categoryConfig = config.categories && config.categories[task.category];
           if (!categoryConfig || !categoryConfig.enabled) {
             dueTasks.push(task);
           }
         }
+      }
+    });
+  }
+  
+  // Check sub-goals for personal development section
+  if (sectionId === 'personal' && sectionTasks.tasks) {
+    sectionTasks.tasks.forEach(task => {
+      if (task.subGoals) {
+        task.subGoals.forEach(subGoal => {
+          if (subGoal.status !== 'completed') {
+            const dueDate = new Date(subGoal.dueDate);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            if (dueDate.getTime() <= today.getTime()) {
+              // Only include if category doesn't have its own notification enabled
+              const categoryConfig = config.categories && config.categories[subGoal.category];
+              if (!categoryConfig || !categoryConfig.enabled) {
+                dueTasks.push({
+                  ...subGoal,
+                  title: `${task.title} - ${subGoal.title}`,
+                });
+              }
+            }
+          }
+        });
       }
     });
   }
@@ -157,6 +183,27 @@ const checkDueTasksForCategory = (sectionId, categoryName, categoryConfig, secti
     });
   }
   
+  // Check sub-goals for personal development section
+  if (sectionId === 'personal' && sectionTasks.tasks) {
+    sectionTasks.tasks.forEach(task => {
+      if (task.subGoals) {
+        task.subGoals.forEach(subGoal => {
+          if (subGoal.status !== 'completed' && subGoal.category === categoryName) {
+            const dueDate = new Date(subGoal.dueDate);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            if (dueDate.getTime() <= today.getTime()) {
+              dueTasks.push({
+                ...subGoal,
+                title: `${task.title} - ${subGoal.title}`,
+              });
+            }
+          }
+        });
+      }
+    });
+  }
+  
   if (dueTasks.length > 0) {
     const sectionNames = {
       household: 'Household',
@@ -186,13 +233,20 @@ const setupNotificationIntervals = (settings, allTasks = {}) => {
   notificationIntervals.forEach(interval => clearInterval(interval));
   notificationIntervals.clear();
 
+  console.log('Setting up notification intervals with settings:', settings);
+  console.log('Available tasks:', Object.keys(allTasks));
   Object.entries(settings).forEach(([sectionId, config]) => {
-    if (config.enabled && config.interval > 0) {
+    console.log(`Processing section ${sectionId}:`, config);
+    
+    if (config && config.enabled && config.interval > 0) {
       // Convert to minutes based on unit
       const intervalInMinutes = config.unit === 'hours' ? config.interval * 60 : config.interval;
       const intervalMs = intervalInMinutes * 60 * 1000; // Convert to milliseconds
       
+      console.log(`Setting up section interval for ${sectionId}: ${intervalInMinutes} minutes`);
+      
       const intervalId = setInterval(() => {
+        console.log(`Running section notification check for ${sectionId}`);
         checkDueTasksForSection(sectionId, config, allTasks[sectionId]);
       }, intervalMs);
       notificationIntervals.set(sectionId, intervalId);
@@ -200,12 +254,15 @@ const setupNotificationIntervals = (settings, allTasks = {}) => {
       // Setup category-specific intervals
       if (config.categories) {
         Object.entries(config.categories).forEach(([categoryName, categoryConfig]) => {
-          if (categoryConfig.enabled && categoryConfig.interval > 0) {
+          if (categoryConfig && categoryConfig.enabled && categoryConfig.interval > 0) {
             const categoryIntervalInMinutes = categoryConfig.unit === 'hours' ? 
               categoryConfig.interval * 60 : categoryConfig.interval;
             const categoryIntervalMs = categoryIntervalInMinutes * 60 * 1000;
             
+            console.log(`Setting up category interval for ${sectionId}-${categoryName}: ${categoryIntervalInMinutes} minutes`);
+            
             const categoryIntervalId = setInterval(() => {
+              console.log(`Running category notification check for ${sectionId}-${categoryName}`);
               checkDueTasksForCategory(sectionId, categoryName, categoryConfig, allTasks[sectionId]);
             }, categoryIntervalMs);
             
@@ -215,6 +272,8 @@ const setupNotificationIntervals = (settings, allTasks = {}) => {
       }
     }
   });
+  
+  console.log('Active notification intervals:', Array.from(notificationIntervals.keys()));
 };
 
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
