@@ -167,9 +167,54 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       const dateA = new Date(a.nextOccurrence);
       const dateB = new Date(b.nextOccurrence);
       return dateA.getTime() - dateB.getTime();
+  const applyFiltersToUpcoming = (upcomingData: { general: (Task | SubGoal)[], recurring: RecurringTask[] }) => {
+    const filterTasks = (taskList: any[]) => {
+      return taskList.filter(task => {
+        // Status filter
+        if (filters.status !== 'all' && task.status !== filters.status) {
+          return false;
+        }
+
+        // Category filter
+        if (filters.category !== 'all' && task.category !== filters.category) {
+          return false;
+        }
     });
+        // Due date filter for upcoming tasks
+        if (filters.dueDateRange !== 'all') {
+          const taskDate = new Date(task.dueDate || task.nextOccurrence);
+          const today = new Date();
+          const tomorrow = new Date(today);
+          tomorrow.setDate(today.getDate() + 1);
+          const nextWeek = new Date(today);
+          nextWeek.setDate(today.getDate() + 7);
+          const nextMonth = new Date(today);
+          nextMonth.setMonth(today.getMonth() + 1);
     
+          switch (filters.dueDateRange) {
+            case 'today':
+              if (taskDate.toDateString() !== today.toDateString()) return false;
+              break;
+            case 'tomorrow':
+              if (taskDate.toDateString() !== tomorrow.toDateString()) return false;
+              break;
+            case 'this-week':
+              if (taskDate < today || taskDate > nextWeek) return false;
+              break;
+            case 'this-month':
+              if (taskDate < today || taskDate > nextMonth) return false;
+              break;
+          }
+        }
     return { general: upcomingGeneral, recurring: upcomingRecurring };
+        return true;
+      });
+    };
+  };
+    return {
+      general: filterTasks(upcomingData.general),
+      recurring: filterTasks(upcomingData.recurring)
+    };
   };
 
   const getFilteredTasks = () => {
@@ -179,7 +224,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       case 'recurring':
         return applyFilters(recurringTasks);
       case 'upcoming':
-        return getUpcomingTasks(); // This now returns an object with general and recurring
+        return applyFiltersToUpcoming(getUpcomingTasks());
       default:
         return [];
     }
@@ -192,7 +237,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   ];
 
   const renderUpcomingContent = () => {
-    const upcomingData = getUpcomingTasks();
+    const upcomingData = getFilteredTasks() as { general: (Task | SubGoal)[], recurring: RecurringTask[] };
     
     return (
       <div className="space-y-8">
@@ -247,7 +292,12 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             )
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <div className="text-gray-400 text-sm">No upcoming general tasks</div>
+              <div className="text-gray-400 text-sm">
+                {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
+                  ? 'No upcoming general tasks match the current filters' 
+                  : 'No upcoming general tasks'
+                }
+              </div>
             </div>
           )}
         </div>
@@ -286,7 +336,12 @@ const TaskSection: React.FC<TaskSectionProps> = ({
             )
           ) : (
             <div className="text-center py-8 bg-gray-50 rounded-lg">
-              <div className="text-gray-400 text-sm">No upcoming recurring tasks</div>
+              <div className="text-gray-400 text-sm">
+                {(filters.status !== 'all' || filters.category !== 'all' || filters.dueDateRange !== 'all') 
+                  ? 'No upcoming recurring tasks match the current filters' 
+                  : 'No upcoming recurring tasks'
+                }
+              </div>
             </div>
           )}
         </div>
