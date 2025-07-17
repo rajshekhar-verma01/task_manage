@@ -30,7 +30,9 @@
       }
     ],
     "requestedExecutionLevel": "asInvoker",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "sign": false,
+    "verifyUpdateCodeSignature": false
   },
   "linux": {
     "target": [
