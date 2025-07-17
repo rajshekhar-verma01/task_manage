@@ -190,7 +190,7 @@ const TaskList: React.FC<TaskListProps> = ({
                   <div className="flex items-center space-x-1">
                     <Calendar className="w-4 h-4 text-gray-400" />
                     <span className={`text-sm ${getDueDateColor(task.dueDate || task.nextOccurrence)}`}>
-                      {formatDate(task.dueDate || task.nextOccurrence)}
+                      {formatDate('nextOccurrence' in task ? task.nextOccurrence : task.dueDate)}
                     </span>
                   </div>
                 </td>

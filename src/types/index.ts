@@ -9,7 +9,7 @@ export interface Task {
   updatedAt: string;
 }
 
-export interface RecurringTask extends Task {
+export interface RecurringTask extends Omit<Task, 'dueDate'> {
   startDate: string;
   endDate?: string;
   recurrenceValue: number;

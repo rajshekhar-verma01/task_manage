@@ -60,7 +60,8 @@ const TaskModal: React.FC<TaskModalProps> = ({
         classStartDate: (task as PersonalDevelopmentTask).classStartDate || '',
         classFromTime: (task as PersonalDevelopmentTask).classFromTime || '',
         classToTime: (task as PersonalDevelopmentTask).classToTime || '',
-        startDate: '',
+        startDate: (task as RecurringTask).startDate || '',
+        endDate: (task as RecurringTask).endDate || '',
         recurrenceValue: 1,
         recurrenceUnit: 'days',
       });
@@ -118,7 +119,6 @@ const TaskModal: React.FC<TaskModalProps> = ({
         title: formData.title,
         description: formData.description,
         status: formData.status,
-        dueDate: formData.dueDate,
         category: formData.category,
         createdAt: task?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),

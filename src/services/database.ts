@@ -41,7 +41,6 @@ class DatabaseService {
         title TEXT NOT NULL,
         description TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('todo', 'in-progress', 'completed')),
-        due_date TEXT NOT NULL,
         category TEXT NOT NULL,
         section_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -184,9 +183,9 @@ class DatabaseService {
   saveRecurringTask(task: RecurringTask, sectionId: string) {
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO recurring_tasks (
-        id, title, description, status, due_date, category, section_id,
+        id, title, description, status, category, section_id,
         created_at, updated_at, start_date, end_date, recurrence_value, recurrence_unit, next_occurrence
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -194,7 +193,6 @@ class DatabaseService {
       task.title,
       task.description,
       task.status,
-      task.dueDate,
       task.category,
       sectionId,
       task.createdAt,
@@ -218,7 +216,6 @@ class DatabaseService {
       title: row.title,
       description: row.description,
       status: row.status,
-      dueDate: row.due_date,
       category: row.category,
       createdAt: row.created_at,
       updatedAt: row.updated_at,

@@ -112,7 +112,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
       <div className="flex flex-wrap gap-2 mb-3">
         <div className="flex items-center space-x-1 text-xs text-gray-500">
           <Calendar className="w-4 h-4" />
-          <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+          <span>
+            {'nextOccurrence' in task 
+              ? `Next: ${new Date((task as any).nextOccurrence).toLocaleDateString()}`
+              : new Date(task.dueDate).toLocaleDateString()
+            }
+          </span>
         </div>
         <div className="flex items-center space-x-1 text-xs text-gray-500">
           <Tag className="w-4 h-4" />
