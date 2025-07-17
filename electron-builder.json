@@ -28,7 +28,9 @@
         "target": "nsis",
         "arch": ["x64", "ia32"]
       }
-    ]
+    ],
+    "requestedExecutionLevel": "asInvoker",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "linux": {
     "target": [
@@ -47,6 +49,8 @@
     "oneClick": false,
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
-    "createStartMenuShortcut": true
+    "createStartMenuShortcut": true,
+    "allowElevation": false,
+    "perMachine": false
   }
 }
