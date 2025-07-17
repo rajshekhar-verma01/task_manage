@@ -6,7 +6,8 @@
   },
   "files": [
     "dist/**/*",
-    "public/electron.js",
+    "main.js",
+    "public/preload.js",
     "node_modules/**/*"
   ],
   "mac": {
