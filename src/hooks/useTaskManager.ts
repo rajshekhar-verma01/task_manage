@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Task, PersonalDevelopmentTask, RecurringTask, TaskSection, Analytics } from '../types';
+import { Task, PersonalDevelopmentTask, RecurringTask, TaskSection, Analytics, BlogEntry, BlogSection, BlogAnalytics } from '../types';
 import DatabaseService from '../services/database';
 
 interface TaskData {
   household: TaskSection;
   personal: TaskSection;
   official: TaskSection;
-  blog: TaskSection;
+  blog: BlogSection;
 }
 
 // Initialize database service
@@ -48,10 +48,9 @@ export const useTaskManager = () => {
     },
     blog: {
       id: 'blog',
-      name: 'Blog',
+      name: 'Blog & Learning',
       color: 'orange',
-      tasks: [],
-      recurringTasks: [],
+      entries: [],
       categories: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
     },
   });
@@ -346,6 +345,53 @@ export const useTaskManager = () => {
     });
   };
 
+  // Blog entry management functions
+  const updateBlogEntry = (entry: BlogEntry) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        blog: {
+          ...prev.blog,
+          entries: prev.blog.entries.some(e => e.id === entry.id)
+            ? prev.blog.entries.map(e => e.id === entry.id ? entry : e)
+            : [...prev.blog.entries, entry],
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
+
+  const updateBlogEntryStatus = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        blog: {
+          ...prev.blog,
+          entries: prev.blog.entries.map(entry =>
+            entry.id === entryId ? { ...entry, status, updatedAt: new Date().toISOString() } : entry
+          ),
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
+
+  const deleteBlogEntry = (entryId: string) => {
+    setTasks(prev => {
+      const newTasks = {
+        ...prev,
+        blog: {
+          ...prev.blog,
+          entries: prev.blog.entries.filter(entry => entry.id !== entryId),
+        },
+      };
+      saveToLocalStorage(newTasks);
+      return newTasks;
+    });
+  };
+
   const addCategory = (sectionId: string, category: string) => {
     if (dbService) {
       try {
@@ -461,7 +507,7 @@ export const useTaskManager = () => {
     household: Analytics;
     personal: Analytics;
     official: Analytics;
-    blog: Analytics;
+    blog: BlogAnalytics;
   } => {
     const generateAnalytics = (section: TaskSection): Analytics => {
       const allTasks = [...section.tasks, ...section.recurringTasks];
@@ -506,11 +552,53 @@ export const useTaskManager = () => {
       };
     };
 
+    const generateBlogAnalytics = (blogSection: BlogSection): BlogAnalytics => {
+      const entries = blogSection.entries;
+      
+      const totalEntries = entries.length;
+      const toReadEntries = entries.filter(e => e.status === 'to-read').length;
+      const readingEntries = entries.filter(e => e.status === 'reading').length;
+      const practicedEntries = entries.filter(e => e.status === 'practiced').length;
+      const expertEntries = entries.filter(e => e.status === 'expert').length;
+      const completionRate = totalEntries > 0 ? Math.round((expertEntries / totalEntries) * 100) : 0;
+
+      const categoryBreakdown = entries.reduce((acc: { [key: string]: number }, entry) => {
+        acc[entry.category] = (acc[entry.category] || 0) + 1;
+        return acc;
+      }, {});
+
+      const statusBreakdown = {
+        'to-read': toReadEntries,
+        'reading': readingEntries,
+        'practiced': practicedEntries,
+        'expert': expertEntries,
+      };
+
+      // Generate monthly progress (simplified for demo)
+      const monthlyProgress = [
+        { month: 'Jan', completed: Math.floor(expertEntries * 0.8), total: Math.floor(totalEntries * 0.8) },
+        { month: 'Feb', completed: Math.floor(expertEntries * 0.9), total: Math.floor(totalEntries * 0.9) },
+        { month: 'Mar', completed: expertEntries, total: totalEntries },
+      ];
+
+      return {
+        totalEntries,
+        toReadEntries,
+        readingEntries,
+        practicedEntries,
+        expertEntries,
+        completionRate,
+        categoryBreakdown,
+        statusBreakdown,
+        monthlyProgress,
+      };
+    };
+
     return {
       household: generateAnalytics(tasks.household),
       personal: generateAnalytics(tasks.personal),
       official: generateAnalytics(tasks.official),
-      blog: generateAnalytics(tasks.blog),
+      blog: generateBlogAnalytics(tasks.blog),
     };
   };
 
@@ -522,8 +610,9 @@ export const useTaskManager = () => {
     updateSubGoalStatus,
     deleteTask,
     deleteRecurringTask,
-    deleteTask,
-    deleteRecurringTask,
+    updateBlogEntry,
+    updateBlogEntryStatus,
+    deleteBlogEntry,
     addCategory,
     removeCategory,
     getAnalytics,

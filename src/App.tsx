@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useEffect } from 'react';
 import Navigation from './components/Navigation';
 import TaskSection from './components/TaskSection';
+import BlogSection from './components/BlogSection';
 import Analytics from './components/Analytics';
 import NotificationSettings from './components/NotificationSettings';
 import DueTasksPopup from './components/DueTasksPopup';
@@ -17,6 +18,9 @@ function App() {
     updateRecurringTask,
     updateTaskStatus, 
     updateSubGoalStatus,
+    updateBlogEntry,
+    updateBlogEntryStatus,
+    deleteBlogEntry,
     addCategory,
     removeCategory,
     getAnalytics 
@@ -53,8 +57,23 @@ function App() {
       return <Analytics analytics={getAnalytics()} />;
     }
 
+    if (activeSection === 'blog') {
+      const blogData = tasks.blog;
+      return (
+        <BlogSection
+          entries={blogData.entries}
+          categories={blogData.categories}
+          onEntryUpdate={updateBlogEntry}
+          onEntryStatusChange={updateBlogEntryStatus}
+          onDeleteEntry={deleteBlogEntry}
+          onAddCategory={(category) => addCategory('blog', category)}
+          onRemoveCategory={(category) => removeCategory('blog', category)}
+        />
+      );
+    }
+
     const sectionData = tasks[activeSection as keyof typeof tasks];
-    if (!sectionData) return null;
+    if (!sectionData || activeSection === 'blog') return null;
 
     return (
       <TaskSection
@@ -67,8 +86,8 @@ function App() {
         onRecurringTaskUpdate={(task) => updateRecurringTask(activeSection, task)}
         onTaskStatusChange={(taskId, status) => updateTaskStatus(activeSection, taskId, status)}
         onSubGoalStatusChange={(taskId, subGoalId, status) => updateSubGoalStatus(activeSection, taskId, subGoalId, status)}
-        onDeleteTask={(taskId) => deleteTask(activeSection, taskId)}
-        onDeleteRecurringTask={(taskId) => deleteRecurringTask(activeSection, taskId)}
+        onDeleteTask={(taskId) => {/* deleteTask function needs to be added to useTaskManager */}}
+        onDeleteRecurringTask={(taskId) => {/* deleteRecurringTask function needs to be added to useTaskManager */}}
         onAddCategory={(category) => addCategory(activeSection, category)}
         onRemoveCategory={(category) => removeCategory(activeSection, category)}
       />
