@@ -14,7 +14,7 @@ let dbService: DatabaseService | null = null;
 
 // Check if we're in Electron environment
 const isElectron = () => {
-  return typeof window !== 'undefined' && window.process && window.process.type;
+  return typeof window !== 'undefined' && window.process && window.process.versions && window.process.versions.electron;
 };
 
 export const useTaskManager = () => {
