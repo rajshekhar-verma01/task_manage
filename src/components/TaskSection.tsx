@@ -127,7 +127,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     upcomingGeneral.push(...upcomingTasks);
     
     // Add upcoming recurring tasks
-    const upcomingRecurring = recurringTasks.filter(task => {
+    upcomingRecurring = recurringTasks.filter(task => {
       const nextDate = new Date(task.nextOccurrence);
       const endDate = task.endDate ? new Date(task.endDate) : null;
       return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
