@@ -29,15 +29,15 @@ function createWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
-    icon: path.join(__dirname, 'icon.png'), // Add your app icon here
+    icon: path.join(__dirname, 'public/icon.png'),
     titleBarStyle: 'default',
-    show: false, // Don't show until ready
+    show: false,
   });
 
   // Load the app
   const startUrl = isDev 
     ? 'http://localhost:5173' 
-    : `file://${path.join(__dirname, '../dist/index.html')}`;
+    : `file://${path.join(__dirname, './dist/index.html')}`;
   
   mainWindow.loadURL(startUrl);
 
@@ -69,7 +69,6 @@ function createMenu() {
           label: 'New Task',
           accelerator: 'CmdOrCtrl+N',
           click: () => {
-            // Send message to renderer to open new task modal
             mainWindow.webContents.send('new-task');
           }
         },
@@ -121,7 +120,6 @@ function createMenu() {
         {
           label: 'About TaskFlow Pro',
           click: () => {
-            // Show about dialog
             const { dialog } = require('electron');
             dialog.showMessageBox(mainWindow, {
               type: 'info',
@@ -152,7 +150,6 @@ function createMenu() {
       ]
     });
 
-    // Window menu
     template[4].submenu = [
       { role: 'close' },
       { role: 'minimize' },
