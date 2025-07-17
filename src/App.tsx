@@ -27,16 +27,16 @@ function App() {
   // Check for due tasks on app start and when tasks change
   useEffect(() => {
     const timer = setTimeout(() => {
-      checkDueTasks(tasks);
+      checkDueTasks(tasks, true); // Pass true to indicate this is a startup check
     }, 1000); // Small delay to ensure tasks are loaded
 
     return () => clearTimeout(timer);
-  }, [tasks, checkDueTasks]);
+  }, []); // Remove tasks dependency to only run on mount
 
   // Listen for due task checks from main process
   useEffect(() => {
     const handleCheckDueTasks = () => {
-      checkDueTasks(tasks);
+      checkDueTasks(tasks, false); // Pass false for regular notification checks
     };
 
     window.addEventListener('check-due-tasks', handleCheckDueTasks);

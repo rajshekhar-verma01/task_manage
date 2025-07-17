@@ -11,6 +11,7 @@ interface NotificationHook {
 export const useNotifications = (): NotificationHook => {
   const [showDueTasksPopup, setShowDueTasksPopup] = useState(false);
   const [dueTasks, setDueTasks] = useState<(Task | PersonalDevelopmentTask)[]>([]);
+  const [hasShownStartupPopup, setHasShownStartupPopup] = useState(false);
 
   useEffect(() => {
     // Set up IPC listener for due task checks
@@ -30,7 +31,12 @@ export const useNotifications = (): NotificationHook => {
     }
   }, []);
 
-  const checkDueTasks = (allTasks: any) => {
+  const checkDueTasks = (allTasks: any, isStartupCheck = false) => {
+    // If this is a startup check and we've already shown the popup, don't show again
+    if (isStartupCheck && hasShownStartupPopup) {
+      return;
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -93,6 +99,11 @@ export const useNotifications = (): NotificationHook => {
     if (tasksToCheck.length > 0) {
       setDueTasks(tasksToCheck);
       setShowDueTasksPopup(true);
+      
+      // Mark that we've shown the startup popup
+      if (isStartupCheck) {
+        setHasShownStartupPopup(true);
+      }
 
       // Show desktop notification if available
       if (window.electronAPI) {
