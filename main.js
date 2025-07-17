@@ -431,7 +431,9 @@ ipcMain.handle('update-notification-intervals', (event, allTasks) => {
 
 // Handle task data updates for notification intervals
 ipcMain.handle('update-notification-intervals', (event, allTasks) => {
+  console.log('Received task data update for notification intervals');
   const settings = loadNotificationSettings();
+  console.log('Loaded notification settings:', settings);
   setupNotificationIntervals(settings, allTasks);
   return { success: true };
 });
