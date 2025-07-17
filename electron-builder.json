@@ -31,8 +31,10 @@
     ],
     "requestedExecutionLevel": "asInvoker",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
-    "sign": false,
-    "verifyUpdateCodeSignature": false
+    "sign": null,
+    "verifyUpdateCodeSignature": false,
+    "certificateFile": null,
+    "certificatePassword": null
   },
   "linux": {
     "target": [
