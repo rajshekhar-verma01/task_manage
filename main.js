@@ -1,10 +1,108 @@
 const { app, BrowserWindow, Menu } = require('electron');
-const { Notification, ipcMain } = require('electron');
+const { Notification, ipcMain, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { EventEmitter } = require('events');
 
-// Notification intervals storage
-let notificationIntervals = new Map();
+// Enhanced notification manager
+class NotificationManager extends EventEmitter {
+  constructor() {
+    super();
+    this.intervals = new Map();
+    this.lastCheck = new Map();
+    this.isSystemSleeping = false;
+    this.setupPowerMonitoring();
+  }
+
+  setupPowerMonitoring() {
+    // Handle system sleep/wake
+    powerMonitor.on('suspend', () => {
+      console.log('System is going to sleep - pausing notifications');
+      this.isSystemSleeping = true;
+    });
+
+    powerMonitor.on('resume', () => {
+      console.log('System woke up - resuming notifications');
+      this.isSystemSleeping = false;
+      // Check for missed notifications during sleep
+      this.checkMissedNotifications();
+    });
+
+    // Handle system lock/unlock
+    powerMonitor.on('lock-screen', () => {
+      console.log('Screen locked');
+    });
+
+    powerMonitor.on('unlock-screen', () => {
+      console.log('Screen unlocked');
+    });
+  }
+
+  createInterval(id, callback, intervalMs) {
+    this.clearInterval(id);
+    
+    const wrappedCallback = () => {
+      if (this.isSystemSleeping) {
+        console.log(`Skipping notification check for ${id} - system sleeping`);
+        return;
+      }
+      
+      console.log(`Running notification check for ${id}`);
+      this.lastCheck.set(id, Date.now());
+      callback();
+    };
+    
+    const intervalId = setInterval(wrappedCallback, intervalMs);
+    this.intervals.set(id, { intervalId, intervalMs, callback: wrappedCallback });
+    
+    // Run immediately if not sleeping
+    if (!this.isSystemSleeping) {
+      wrappedCallback();
+    }
+  }
+
+  clearInterval(id) {
+    const interval = this.intervals.get(id);
+    if (interval) {
+      clearInterval(interval.intervalId);
+      this.intervals.delete(id);
+      this.lastCheck.delete(id);
+    }
+  }
+
+  clearAllIntervals() {
+    this.intervals.forEach((interval, id) => {
+      clearInterval(interval.intervalId);
+    });
+    this.intervals.clear();
+    this.lastCheck.clear();
+  }
+
+  checkMissedNotifications() {
+    const now = Date.now();
+    this.intervals.forEach((interval, id) => {
+      const lastCheck = this.lastCheck.get(id) || 0;
+      const timeSinceLastCheck = now - lastCheck;
+      
+      // If more than the interval time has passed, run the check
+      if (timeSinceLastCheck >= interval.intervalMs) {
+        console.log(`Running missed notification check for ${id}`);
+        interval.callback();
+      }
+    });
+  }
+
+  getStatus() {
+    return {
+      activeIntervals: Array.from(this.intervals.keys()),
+      isSystemSleeping: this.isSystemSleeping,
+      lastChecks: Object.fromEntries(this.lastCheck),
+    };
+  }
+}
+
+// Create notification manager instance
+const notificationManager = new NotificationManager();
 let mainWindow;
 
 // Database path for notifications
@@ -230,8 +328,7 @@ const checkDueTasks = () => {
 // Setup notification intervals
 const setupNotificationIntervals = (settings, allTasks = {}) => {
   // Clear existing intervals
-  notificationIntervals.forEach(interval => clearInterval(interval));
-  notificationIntervals.clear();
+  notificationManager.clearAllIntervals();
 
   console.log('Setting up notification intervals with settings:', settings);
   console.log('Available tasks:', Object.keys(allTasks));
@@ -245,11 +342,10 @@ const setupNotificationIntervals = (settings, allTasks = {}) => {
       
       console.log(`Setting up section interval for ${sectionId}: ${intervalInMinutes} minutes`);
       
-      const intervalId = setInterval(() => {
+      notificationManager.createInterval(sectionId, () => {
         console.log(`Running section notification check for ${sectionId}`);
         checkDueTasksForSection(sectionId, config, allTasks[sectionId]);
       }, intervalMs);
-      notificationIntervals.set(sectionId, intervalId);
       
       // Setup category-specific intervals
       if (config.categories) {
@@ -261,19 +357,17 @@ const setupNotificationIntervals = (settings, allTasks = {}) => {
             
             console.log(`Setting up category interval for ${sectionId}-${categoryName}: ${categoryIntervalInMinutes} minutes`);
             
-            const categoryIntervalId = setInterval(() => {
+            notificationManager.createInterval(`${sectionId}-${categoryName}`, () => {
               console.log(`Running category notification check for ${sectionId}-${categoryName}`);
               checkDueTasksForCategory(sectionId, categoryName, categoryConfig, allTasks[sectionId]);
             }, categoryIntervalMs);
-            
-            notificationIntervals.set(`${sectionId}-${categoryName}`, categoryIntervalId);
           }
         });
       }
     }
   });
   
-  console.log('Active notification intervals:', Array.from(notificationIntervals.keys()));
+  console.log('Active notification intervals:', notificationManager.getStatus());
 };
 
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
@@ -334,8 +428,7 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
     // Clear notification intervals
-    notificationIntervals.forEach(interval => clearInterval(interval));
-    notificationIntervals.clear();
+    notificationManager.clearAllIntervals();
   });
 
   // Debug logs
@@ -384,7 +477,9 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // Keep notifications running even when all windows are closed (except on macOS)
   if (process.platform !== 'darwin') {
+    notificationManager.clearAllIntervals();
     app.quit();
   }
 });
