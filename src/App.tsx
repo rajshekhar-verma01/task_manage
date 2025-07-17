@@ -61,8 +61,8 @@ function App() {
       const blogData = tasks.blog;
       return (
         <BlogSection
-          entries={blogData.entries}
-          categories={blogData.categories}
+          entries={blogData?.entries || []}
+          categories={blogData?.categories || []}
           onEntryUpdate={updateBlogEntry}
           onEntryStatusChange={updateBlogEntryStatus}
           onDeleteEntry={deleteBlogEntry}
@@ -86,8 +86,8 @@ function App() {
         onRecurringTaskUpdate={(task) => updateRecurringTask(activeSection, task)}
         onTaskStatusChange={(taskId, status) => updateTaskStatus(activeSection, taskId, status)}
         onSubGoalStatusChange={(taskId, subGoalId, status) => updateSubGoalStatus(activeSection, taskId, subGoalId, status)}
-        onDeleteTask={(taskId) => {/* deleteTask function needs to be added to useTaskManager */}}
-        onDeleteRecurringTask={(taskId) => {/* deleteRecurringTask function needs to be added to useTaskManager */}}
+        onDeleteTask={(taskId) => deleteTask(activeSection, taskId)}
+        onDeleteRecurringTask={(taskId) => deleteRecurringTask(activeSection, taskId)}
         onAddCategory={(category) => addCategory(activeSection, category)}
         onRemoveCategory={(category) => removeCategory(activeSection, category)}
       />

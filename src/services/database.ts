@@ -80,6 +80,20 @@ class DatabaseService {
       )
     `);
 
+    // Create blog entries table
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS blog_entries (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('to-read', 'reading', 'practiced', 'expert')),
+        category TEXT NOT NULL,
+        target_date TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `);
+
     // Insert default categories
     this.insertDefaultCategories();
   }
@@ -189,6 +203,56 @@ class DatabaseService {
   deleteRecurringTask(taskId: string) {
     const stmt = this.db.prepare('DELETE FROM recurring_tasks WHERE id = ?');
     stmt.run(taskId);
+  }
+
+  // Blog entry operations
+  saveBlogEntry(entry: any) {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO blog_entries (
+        id, title, description, status, category, target_date, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      entry.id,
+      entry.title,
+      entry.description,
+      entry.status,
+      entry.category,
+      entry.targetDate,
+      entry.createdAt,
+      entry.updatedAt
+    );
+  }
+
+  getBlogEntries(): any[] {
+    const stmt = this.db.prepare(`
+      SELECT * FROM blog_entries ORDER BY created_at DESC
+    `);
+    const rows = stmt.all() as any[];
+
+    return rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      category: row.category,
+      targetDate: row.target_date,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  updateBlogEntryStatus(entryId: string, status: string) {
+    const stmt = this.db.prepare(`
+      UPDATE blog_entries SET status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(status, new Date().toISOString(), entryId);
+  }
+
+  deleteBlogEntry(entryId: string) {
+    const stmt = this.db.prepare('DELETE FROM blog_entries WHERE id = ?');
+    stmt.run(entryId);
   }
   // Recurring task operations
   saveRecurringTask(task: RecurringTask, sectionId: string) {
@@ -362,6 +426,16 @@ class DatabaseService {
       official: 'purple',
       blog: 'orange',
     };
+
+    if (sectionId === 'blog') {
+      return {
+        id: sectionId,
+        name: sectionNames[sectionId as keyof typeof sectionNames],
+        color: sectionColors[sectionId as keyof typeof sectionColors],
+        entries: this.getBlogEntries(),
+        categories: this.getCategories(sectionId),
+      } as any;
+    }
 
     return {
       id: sectionId,

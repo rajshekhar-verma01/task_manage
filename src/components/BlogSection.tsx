@@ -46,6 +46,10 @@ const BlogSection: React.FC<BlogSectionProps> = ({
   };
 
   const applyFilters = (entryList: BlogEntry[]) => {
+    if (!entries || !Array.isArray(entries)) {
+      return [];
+    }
+    
     return entryList.filter(entry => {
       // Status filter
       if (filters.status !== 'all' && entry.status !== filters.status) {

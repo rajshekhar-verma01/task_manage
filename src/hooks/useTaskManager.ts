@@ -347,14 +347,28 @@ export const useTaskManager = () => {
 
   // Blog entry management functions
   const updateBlogEntry = (entry: BlogEntry) => {
+    if (dbService) {
+      try {
+        dbService.saveBlogEntry(entry);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error saving blog entry to database:', error);
+        updateBlogEntryInMemory(entry);
+      }
+    } else {
+      updateBlogEntryInMemory(entry);
+    }
+  };
+
+  const updateBlogEntryInMemory = (entry: BlogEntry) => {
     setTasks(prev => {
       const newTasks = {
         ...prev,
         blog: {
           ...prev.blog,
-          entries: prev.blog.entries.some(e => e.id === entry.id)
+          entries: prev.blog.entries?.some(e => e.id === entry.id)
             ? prev.blog.entries.map(e => e.id === entry.id ? entry : e)
-            : [...prev.blog.entries, entry],
+            : [...(prev.blog.entries || []), entry],
         },
       };
       saveToLocalStorage(newTasks);
@@ -363,12 +377,26 @@ export const useTaskManager = () => {
   };
 
   const updateBlogEntryStatus = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
+    if (dbService) {
+      try {
+        dbService.updateBlogEntryStatus(entryId, status);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error updating blog entry status in database:', error);
+        updateBlogEntryStatusInMemory(entryId, status);
+      }
+    } else {
+      updateBlogEntryStatusInMemory(entryId, status);
+    }
+  };
+
+  const updateBlogEntryStatusInMemory = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
     setTasks(prev => {
       const newTasks = {
         ...prev,
         blog: {
           ...prev.blog,
-          entries: prev.blog.entries.map(entry =>
+          entries: (prev.blog.entries || []).map(entry =>
             entry.id === entryId ? { ...entry, status, updatedAt: new Date().toISOString() } : entry
           ),
         },
@@ -379,12 +407,26 @@ export const useTaskManager = () => {
   };
 
   const deleteBlogEntry = (entryId: string) => {
+    if (dbService) {
+      try {
+        dbService.deleteBlogEntry(entryId);
+        loadAllData(); // Reload from database
+      } catch (error) {
+        console.error('Error deleting blog entry from database:', error);
+        deleteBlogEntryInMemory(entryId);
+      }
+    } else {
+      deleteBlogEntryInMemory(entryId);
+    }
+  };
+
+  const deleteBlogEntryInMemory = (entryId: string) => {
     setTasks(prev => {
       const newTasks = {
         ...prev,
         blog: {
           ...prev.blog,
-          entries: prev.blog.entries.filter(entry => entry.id !== entryId),
+          entries: (prev.blog.entries || []).filter(entry => entry.id !== entryId),
         },
       };
       saveToLocalStorage(newTasks);
@@ -598,7 +640,7 @@ export const useTaskManager = () => {
       household: generateAnalytics(tasks.household),
       personal: generateAnalytics(tasks.personal),
       official: generateAnalytics(tasks.official),
-      blog: generateBlogAnalytics(tasks.blog),
+      blog: generateBlogAnalytics(tasks.blog || { entries: [], categories: [] }),
     };
   };
 
