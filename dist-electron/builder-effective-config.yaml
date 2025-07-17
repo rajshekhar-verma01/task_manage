@@ -1,0 +1,44 @@
+directories:
+  output: dist-electron
+  buildResources: public
+appId: com.taskflowpro.app
+productName: TaskFlow Pro
+files:
+  - filter:
+      - dist/**/*
+      - main.js
+      - public/preload.js
+      - node_modules/**/*
+      - '!node_modules/.cache'
+      - '!node_modules/.vite'
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: public/icon.icns
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+  icon: public/icon.ico
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: public/icon.png
+  category: Office
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+electronVersion: 28.3.3
