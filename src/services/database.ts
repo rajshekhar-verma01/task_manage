@@ -174,6 +174,13 @@ class DatabaseService {
     stmt.run(status, new Date().toISOString(), taskId);
   }
 
+  updateRecurringTaskStatus(taskId: string, status: string) {
+    const stmt = this.db.prepare(`
+      UPDATE recurring_tasks SET status = ?, updated_at = ? WHERE id = ?
+    `);
+    stmt.run(status, new Date().toISOString(), taskId);
+  }
+
   deleteTask(taskId: string) {
     const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
     stmt.run(taskId);
@@ -185,18 +192,6 @@ class DatabaseService {
   }
   // Recurring task operations
   saveRecurringTask(task: RecurringTask, sectionId: string) {
-    // Auto-set status based on start date for new recurring tasks
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const taskStartDate = new Date(task.startDate);
-    taskStartDate.setHours(0, 0, 0, 0);
-    
-    // Check if task already exists
-    const existingTask = this.db.prepare('SELECT id FROM recurring_tasks WHERE id = ?').get(task.id);
-    if (!existingTask) {
-      task.status = taskStartDate <= today ? 'in-progress' : 'todo';
-    }
-    
     const stmt = this.db.prepare(`
       INSERT OR REPLACE INTO recurring_tasks (
         id, title, description, status, category, section_id,

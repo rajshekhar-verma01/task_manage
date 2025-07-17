@@ -99,6 +99,11 @@ export const useTaskManager = () => {
       try {
         const parsedTasks = JSON.parse(savedTasks);
         setTasks(parsedTasks);
+        
+        // Update recurring task statuses after loading from localStorage
+        setTimeout(() => {
+          updateRecurringTaskStatuses();
+        }, 100);
       } catch (error) {
         console.error('Error loading tasks from localStorage:', error);
       }
@@ -107,6 +112,56 @@ export const useTaskManager = () => {
 
   const saveToLocalStorage = (data: TaskData) => {
     localStorage.setItem('taskManagerData', JSON.stringify(data));
+  };
+
+  // Function to update recurring task statuses based on start date
+  const updateRecurringTaskStatuses = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    let hasUpdates = false;
+    
+    setTasks(prev => {
+      const newTasks = { ...prev };
+      
+      Object.keys(newTasks).forEach(sectionId => {
+        const section = newTasks[sectionId as keyof TaskData];
+        
+        section.recurringTasks = section.recurringTasks.map(task => {
+          const startDate = new Date(task.startDate);
+          startDate.setHours(0, 0, 0, 0);
+          
+          // If start date is today or in the past, and status is 'todo', change to 'in-progress'
+          if (startDate <= today && task.status === 'todo') {
+            hasUpdates = true;
+            const updatedTask = {
+              ...task,
+              status: 'in-progress' as const,
+              updatedAt: new Date().toISOString(),
+            };
+            
+            // Update in database if available
+            if (dbService) {
+              try {
+                dbService.saveRecurringTask(updatedTask, sectionId);
+              } catch (error) {
+                console.error('Error updating recurring task status in database:', error);
+              }
+            }
+            
+            return updatedTask;
+          }
+          
+          return task;
+        });
+      });
+      
+      if (hasUpdates) {
+        saveToLocalStorage(newTasks);
+      }
+      
+      return newTasks;
+    });
   };
 
   const loadAllData = () => {
@@ -121,6 +176,11 @@ export const useTaskManager = () => {
       });
 
       setTasks(newTaskData as TaskData);
+      
+      // Update recurring task statuses after loading data
+      setTimeout(() => {
+        updateRecurringTaskStatuses();
+      }, 100);
     } catch (error) {
       console.error('Error loading data from database:', error);
       loadFromLocalStorage();
