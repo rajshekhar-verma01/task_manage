@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Task, PersonalDevelopmentTask, RecurringTask, TaskSection, Analytics, BlogEntry, BlogSection, BlogAnalytics } from '../types';
-import DatabaseService from '../services/database';
 
 interface TaskData {
   household: TaskSection;
@@ -8,17 +7,6 @@ interface TaskData {
   official: TaskSection;
   blog: BlogSection;
 }
-
-// Initialize database service
-let dbService: DatabaseService | null = null;
-
-// Check if we're in Electron environment
-const isElectron = () => {
-  return typeof window !== 'undefined' && 
-         typeof window.process !== 'undefined' && 
-         typeof window.process.versions !== 'undefined' && 
-         typeof window.process.versions.electron !== 'undefined';
-};
 
 export const useTaskManager = () => {
   const [tasks, setTasks] = useState<TaskData>({
@@ -55,34 +43,9 @@ export const useTaskManager = () => {
     },
   });
 
-  // Initialize database service
+  // Load data from localStorage on mount
   useEffect(() => {
-    const initDatabase = async () => {
-      if (isElectron()) {
-        try {
-          // Dynamic import for Electron environment
-          const DatabaseService = (await import('../services/database')).default;
-          dbService = new DatabaseService();
-          loadAllData();
-        } catch (error) {
-          console.error('Failed to initialize database:', error);
-          // Fallback to localStorage
-          loadFromLocalStorage();
-        }
-      } else {
-        // Web environment - use localStorage
-        loadFromLocalStorage();
-      }
-    };
-
-    initDatabase();
-
-    // Cleanup on unmount
-    return () => {
-      if (dbService) {
-        dbService.close();
-      }
-    };
+    loadFromLocalStorage();
   }, []);
 
   // Update notification intervals when tasks change
@@ -163,42 +126,8 @@ export const useTaskManager = () => {
     });
   };
 
-  const loadAllData = () => {
-    if (!dbService) return;
-
-    try {
-      const sections = ['household', 'personal', 'official', 'blog'];
-      const newTaskData: Partial<TaskData> = {};
-
-      sections.forEach(sectionId => {
-        newTaskData[sectionId as keyof TaskData] = dbService!.getSectionData(sectionId);
-      });
-
-      setTasks(newTaskData as TaskData);
-      
-      // Update recurring task statuses after loading data
-      setTimeout(() => {
-        updateRecurringTaskStatuses();
-      }, 100);
-    } catch (error) {
-      console.error('Error loading data from database:', error);
-      loadFromLocalStorage();
-    }
-  };
-
   const updateTask = (sectionId: string, task: Task | PersonalDevelopmentTask) => {
-    if (dbService) {
-      try {
-        dbService.saveTask(task, sectionId);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error saving task to database:', error);
-        // Fallback to localStorage
-        updateTaskInMemory(sectionId, task);
-      }
-    } else {
-      updateTaskInMemory(sectionId, task);
-    }
+    updateTaskInMemory(sectionId, task);
   };
 
   const updateTaskInMemory = (sectionId: string, task: Task | PersonalDevelopmentTask) => {
@@ -230,17 +159,7 @@ export const useTaskManager = () => {
       task.status = taskStartDate <= today ? 'in-progress' : 'todo';
     }
     
-    if (dbService) {
-      try {
-        dbService.saveRecurringTask(task, sectionId);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error saving recurring task to database:', error);
-        updateRecurringTaskInMemory(sectionId, task);
-      }
-    } else {
-      updateRecurringTaskInMemory(sectionId, task);
-    }
+    updateRecurringTaskInMemory(sectionId, task);
   };
 
   const updateRecurringTaskInMemory = (sectionId: string, task: RecurringTask) => {
@@ -272,17 +191,7 @@ export const useTaskManager = () => {
   };
 
   const updateTaskStatus = (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
-    if (dbService) {
-      try {
-        dbService.updateTaskStatus(taskId, status);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error updating task status in database:', error);
-        updateTaskStatusInMemory(sectionId, taskId, status);
-      }
-    } else {
-      updateTaskStatusInMemory(sectionId, taskId, status);
-    }
+    updateTaskStatusInMemory(sectionId, taskId, status);
   };
 
   const updateTaskStatusInMemory = (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
@@ -302,17 +211,7 @@ export const useTaskManager = () => {
   };
 
   const updateSubGoalStatus = (sectionId: string, taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => {
-    if (dbService) {
-      try {
-        dbService.updateSubGoalStatus(subGoalId, status);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error updating sub goal status in database:', error);
-        updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
-      }
-    } else {
-      updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
-    }
+    updateSubGoalStatusInMemory(sectionId, taskId, subGoalId, status);
   };
 
   const updateSubGoalStatusInMemory = (sectionId: string, taskId: string, subGoalId: string, status: 'todo' | 'in-progress' | 'completed') => {
@@ -347,17 +246,7 @@ export const useTaskManager = () => {
 
   // Blog entry management functions
   const updateBlogEntry = (entry: BlogEntry) => {
-    if (dbService) {
-      try {
-        dbService.saveBlogEntry(entry);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error saving blog entry to database:', error);
-        updateBlogEntryInMemory(entry);
-      }
-    } else {
-      updateBlogEntryInMemory(entry);
-    }
+    updateBlogEntryInMemory(entry);
   };
 
   const updateBlogEntryInMemory = (entry: BlogEntry) => {
@@ -377,17 +266,7 @@ export const useTaskManager = () => {
   };
 
   const updateBlogEntryStatus = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
-    if (dbService) {
-      try {
-        dbService.updateBlogEntryStatus(entryId, status);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error updating blog entry status in database:', error);
-        updateBlogEntryStatusInMemory(entryId, status);
-      }
-    } else {
-      updateBlogEntryStatusInMemory(entryId, status);
-    }
+    updateBlogEntryStatusInMemory(entryId, status);
   };
 
   const updateBlogEntryStatusInMemory = (entryId: string, status: 'to-read' | 'reading' | 'practiced' | 'expert') => {
@@ -407,17 +286,7 @@ export const useTaskManager = () => {
   };
 
   const deleteBlogEntry = (entryId: string) => {
-    if (dbService) {
-      try {
-        dbService.deleteBlogEntry(entryId);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error deleting blog entry from database:', error);
-        deleteBlogEntryInMemory(entryId);
-      }
-    } else {
-      deleteBlogEntryInMemory(entryId);
-    }
+    deleteBlogEntryInMemory(entryId);
   };
 
   const deleteBlogEntryInMemory = (entryId: string) => {
@@ -435,17 +304,7 @@ export const useTaskManager = () => {
   };
 
   const addCategory = (sectionId: string, category: string) => {
-    if (dbService) {
-      try {
-        dbService.addCategory(sectionId, category);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error adding category to database:', error);
-        addCategoryInMemory(sectionId, category);
-      }
-    } else {
-      addCategoryInMemory(sectionId, category);
-    }
+    addCategoryInMemory(sectionId, category);
   };
 
   const addCategoryInMemory = (sectionId: string, category: string) => {
@@ -463,17 +322,7 @@ export const useTaskManager = () => {
   };
 
   const deleteTask = (sectionId: string, taskId: string) => {
-    if (dbService) {
-      try {
-        dbService.deleteTask(taskId);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error deleting task from database:', error);
-        deleteTaskInMemory(sectionId, taskId);
-      }
-    } else {
-      deleteTaskInMemory(sectionId, taskId);
-    }
+    deleteTaskInMemory(sectionId, taskId);
   };
 
   const deleteTaskInMemory = (sectionId: string, taskId: string) => {
@@ -491,17 +340,7 @@ export const useTaskManager = () => {
   };
 
   const deleteRecurringTask = (sectionId: string, taskId: string) => {
-    if (dbService) {
-      try {
-        dbService.deleteRecurringTask(taskId);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error deleting recurring task from database:', error);
-        deleteRecurringTaskInMemory(sectionId, taskId);
-      }
-    } else {
-      deleteRecurringTaskInMemory(sectionId, taskId);
-    }
+    deleteRecurringTaskInMemory(sectionId, taskId);
   };
 
   const deleteRecurringTaskInMemory = (sectionId: string, taskId: string) => {
@@ -518,17 +357,7 @@ export const useTaskManager = () => {
     });
   };
   const removeCategory = (sectionId: string, category: string) => {
-    if (dbService) {
-      try {
-        dbService.removeCategory(sectionId, category);
-        loadAllData(); // Reload from database
-      } catch (error) {
-        console.error('Error removing category from database:', error);
-        removeCategoryInMemory(sectionId, category);
-      }
-    } else {
-      removeCategoryInMemory(sectionId, category);
-    }
+    removeCategoryInMemory(sectionId, category);
   };
 
   const removeCategoryInMemory = (sectionId: string, category: string) => {
