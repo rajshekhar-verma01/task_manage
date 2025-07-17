@@ -38,7 +38,7 @@ export const useTaskManager = () => {
       id: 'blog',
       name: 'Blog & Learning',
       color: 'orange',
-      entries: [],
+      entries: [] as BlogEntry[],
       categories: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
     },
   });
@@ -60,7 +60,35 @@ export const useTaskManager = () => {
     if (savedTasks) {
       try {
         const parsedTasks = JSON.parse(savedTasks);
-        setTasks(parsedTasks);
+        
+        // Ensure all required arrays exist with defaults
+        const sanitizedTasks = {
+          household: {
+            ...parsedTasks.household,
+            tasks: parsedTasks.household?.tasks || [],
+            recurringTasks: parsedTasks.household?.recurringTasks || [],
+            categories: parsedTasks.household?.categories || ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+          },
+          personal: {
+            ...parsedTasks.personal,
+            tasks: parsedTasks.personal?.tasks || [],
+            recurringTasks: parsedTasks.personal?.recurringTasks || [],
+            categories: parsedTasks.personal?.categories || ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+          },
+          official: {
+            ...parsedTasks.official,
+            tasks: parsedTasks.official?.tasks || [],
+            recurringTasks: parsedTasks.official?.recurringTasks || [],
+            categories: parsedTasks.official?.categories || ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+          },
+          blog: {
+            ...parsedTasks.blog,
+            entries: parsedTasks.blog?.entries || [],
+            categories: parsedTasks.blog?.categories || ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'],
+          },
+        };
+        
+        setTasks(sanitizedTasks);
         
         // Update recurring task statuses after loading from localStorage
         setTimeout(() => {

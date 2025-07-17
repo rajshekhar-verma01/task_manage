@@ -61,8 +61,8 @@ function App() {
       const blogData = tasks.blog;
       return (
         <BlogSection
-          entries={blogData?.entries || []}
-          categories={blogData?.categories || []}
+          entries={Array.isArray(blogData?.entries) ? blogData.entries : []}
+          categories={Array.isArray(blogData?.categories) ? blogData.categories : []}
           onEntryUpdate={updateBlogEntry}
           onEntryStatusChange={updateBlogEntryStatus}
           onDeleteEntry={deleteBlogEntry}
@@ -79,9 +79,9 @@ function App() {
       <TaskSection
         sectionName={sectionData.name}
         sectionType={activeSection}
-        tasks={sectionData.tasks}
-        recurringTasks={sectionData.recurringTasks}
-        categories={sectionData.categories}
+        tasks={Array.isArray(sectionData.tasks) ? sectionData.tasks : []}
+        recurringTasks={Array.isArray(sectionData.recurringTasks) ? sectionData.recurringTasks : []}
+        categories={Array.isArray(sectionData.categories) ? sectionData.categories : []}
         onTaskUpdate={(task) => updateTask(activeSection, task)}
         onRecurringTaskUpdate={(task) => updateRecurringTask(activeSection, task)}
         onTaskStatusChange={(taskId, status) => updateTaskStatus(activeSection, taskId, status)}

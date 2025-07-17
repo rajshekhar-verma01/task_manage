@@ -73,6 +73,10 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   };
 
   const applyFilters = (taskList: (Task | RecurringTask)[]) => {
+    if (!Array.isArray(taskList)) {
+      return [];
+    }
+    
     return taskList.filter(task => {
       // Status filter
       if (filters.status !== 'all' && task.status !== filters.status) {
@@ -124,14 +128,14 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     let upcomingRecurring: RecurringTask[] = [];
     
     // Add upcoming general tasks
-    const upcomingTasks = tasks.filter(task => {
+    const upcomingTasks = (Array.isArray(tasks) ? tasks : []).filter(task => {
       const dueDate = new Date(task.dueDate);
       return dueDate > now && task.status !== 'completed';
     });
     upcomingGeneral.push(...upcomingTasks);
     
     // Add upcoming recurring tasks
-    upcomingRecurring = recurringTasks.filter(task => {
+    upcomingRecurring = (Array.isArray(recurringTasks) ? recurringTasks : []).filter(task => {
       const nextDate = new Date(task.nextOccurrence);
       const endDate = task.endDate ? new Date(task.endDate) : null;
       return nextDate > now && task.status !== 'completed' && (!endDate || nextDate <= endDate);
@@ -139,9 +143,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     
     // Add upcoming sub goals from personal development tasks
     if (sectionType === 'personal') {
-      tasks.forEach(task => {
+      (Array.isArray(tasks) ? tasks : []).forEach(task => {
         const personalTask = task as PersonalDevelopmentTask;
-        if (personalTask.subGoals) {
+        if (Array.isArray(personalTask.subGoals)) {
           personalTask.subGoals.forEach(subGoal => {
             const dueDate = new Date(subGoal.dueDate);
             if (dueDate > now && subGoal.status !== 'completed') {
