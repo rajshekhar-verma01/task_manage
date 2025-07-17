@@ -524,6 +524,17 @@ ipcMain.handle('update-notification-intervals', (event, allTasks) => {
   return { success: true };
 });
 
+// Add IPC handler for notification status
+ipcMain.handle('get-notification-status', () => {
+  return notificationManager.getStatus();
+});
+
+// Add IPC handler to manually trigger notification check
+ipcMain.handle('trigger-notification-check', () => {
+  notificationManager.checkMissedNotifications();
+  return { success: true };
+});
+
 // Handle task data updates for notification intervals
 ipcMain.handle('update-notification-intervals', (event, allTasks) => {
   console.log('Received task data update for notification intervals');
