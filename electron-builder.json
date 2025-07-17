@@ -2,13 +2,16 @@
   "appId": "com.taskflowpro.app",
   "productName": "TaskFlow Pro",
   "directories": {
-    "output": "dist-electron"
+    "output": "dist-electron",
+    "buildResources": "public"
   },
   "files": [
     "dist/**/*",
     "main.js",
     "public/preload.js",
-    "node_modules/**/*"
+    "node_modules/**/*",
+    "!node_modules/.cache",
+    "!node_modules/.vite"
   ],
   "mac": {
     "category": "public.app-category.productivity",
