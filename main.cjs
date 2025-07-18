@@ -75,64 +75,124 @@ function createWindow() {
     show: false, // Don't show until ready
   });
 
-  // Load the appropriate URL/file
-  if (isDev) {
-    console.log('Development mode - checking server...');
+  // Always try to load from development server first
+  console.log('Attempting to load from development server...');
+  
+  // Check if server is running immediately
+  checkServer().then(isServerRunning => {
+    if (isServerRunning) {
+      console.log('✓ Development server found, loading from http://localhost:5000');
+      mainWindow.loadURL('http://localhost:5000')
+        .then(() => {
+          console.log('✓ Successfully loaded from development server');
+          if (isDev) {
+            mainWindow.webContents.openDevTools();
+          }
+        })
+        .catch(error => {
+          console.error('✗ Failed to load from development server:', error);
+          loadFallback();
+        });
+    } else {
+      console.log('✗ Development server not running, trying fallback...');
+      loadFallback();
+    }
+  }).catch(error => {
+    console.error('✗ Error checking server:', error);
+    loadFallback();
+  });
+  
+  function loadFallback() {
+    console.log('Loading fallback content...');
+    // Create a simple HTML page if no server is running
+    const fallbackHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Task Management App</title>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            padding: 40px; 
+            text-align: center;
+            background: #f5f5f5;
+          }
+          .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+          }
+          .error { color: #e74c3c; }
+          .instruction { 
+            background: #ecf0f1; 
+            padding: 20px; 
+            border-radius: 4px; 
+            margin: 20px 0;
+            text-align: left;
+          }
+          code { 
+            background: #2c3e50; 
+            color: white; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Task Management Desktop App</h1>
+          <p class="error">⚠️ Development server not running</p>
+          <div class="instruction">
+            <h3>To start the app:</h3>
+            <ol>
+              <li>Open a terminal in your project directory</li>
+              <li>Run: <code>npm run dev</code></li>
+              <li>Wait for "serving on port 5000" message</li>
+              <li>Restart this Electron app</li>
+            </ol>
+          </div>
+          <p>The development server should be running on <strong>http://localhost:5000</strong></p>
+          <button onclick="location.reload()" style="
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer;
+            font-size: 16px;
+          ">Retry Connection</button>
+        </div>
+      </body>
+      </html>
+    `;
     
-    // Wait for server to be ready
-    const waitForServer = async (retries = 15) => {
-      for (let i = 0; i < retries; i++) {
-        const isReady = await checkServer();
-        if (isReady) {
-          console.log('✓ Development server is ready, loading URL...');
-          await mainWindow.loadURL('http://localhost:5000');
-          mainWindow.webContents.openDevTools();
-          return true;
-        }
-        console.log(`Waiting for server... (${i + 1}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-      
-      console.error('✗ Development server not responding after retries');
-      dialog.showErrorBox('Server Connection Error', 
-        'Could not connect to development server on port 5000.\n\n' +
-        'Please ensure the server is running by executing:\nnpm run dev'
-      );
-      return false;
-    };
-    
-    waitForServer().then(success => {
-      if (success) {
-        console.log('Successfully loaded development server');
-      }
-    });
-  } else {
-    console.log('Production mode - loading built files...');
-    mainWindow.loadFile(path.join(__dirname, 'dist/public/index.html'));
+    mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(fallbackHTML)}`);
   }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     console.log('Window ready to show');
     mainWindow.show();
+    
+    // Initialize database after window is shown
+    setTimeout(() => {
+      console.log('Initializing database...');
+      const dbReady = initializeDatabase();
+      
+      // Send database ready event to renderer
+      mainWindow.webContents.send('database-ready', { 
+        success: dbReady, 
+        hasDatabase: dbReady 
+      });
+    }, 1000);
   });
   
-  // Initialize database after window content loads
-  mainWindow.webContents.once('dom-ready', () => {
-    console.log('DOM ready, initializing database...');
-    const dbReady = initializeDatabase();
-    
-    // Send database ready event to renderer
-    mainWindow.webContents.send('database-ready', { 
-      success: dbReady, 
-      hasDatabase: dbReady 
-    });
-  });
-
   // Add error handling
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('Failed to load:', errorCode, errorDescription, validatedURL);
-    dialog.showErrorBox('Load Failed', `Failed to load ${validatedURL}: ${errorDescription}`);
   });
 
   mainWindow.webContents.on('did-start-loading', () => {
