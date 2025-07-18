@@ -10,6 +10,10 @@ let db;
 // Initialize database
 function initializeDatabase() {
   try {
+    // Get Electron's userData path
+    const userDataPath = app.getPath('userData');
+    console.log('Using userData path:', userDataPath);
+    
     // Use absolute path to avoid module resolution issues
     const dbPath = path.join(__dirname, 'src', 'services', 'database-electron.cjs');
     console.log('Loading database from:', dbPath);
@@ -20,7 +24,7 @@ function initializeDatabase() {
     }
     
     const DatabaseService = require(dbPath);
-    db = new DatabaseService();
+    db = new DatabaseService(userDataPath);
     console.log('✓ Database service initialized successfully');
     
     // Test database connection
@@ -176,18 +180,6 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     console.log('Window ready to show');
     mainWindow.show();
-    
-    // Initialize database after window is shown
-    setTimeout(() => {
-      console.log('Initializing database...');
-      const dbReady = initializeDatabase();
-      
-      // Send database ready event to renderer
-      mainWindow.webContents.send('database-ready', { 
-        success: dbReady, 
-        hasDatabase: dbReady 
-      });
-    }, 1000);
   });
   
   // Add error handling
@@ -214,7 +206,22 @@ function createWindow() {
 // App event handlers
 app.whenReady().then(() => {
   console.log('Electron app ready');
+  
+  // Initialize database after app is ready
+  console.log('Initializing database...');
+  const dbReady = initializeDatabase();
+  
   createWindow();
+  
+  // Send database ready event after window is created
+  setTimeout(() => {
+    if (mainWindow && mainWindow.webContents) {
+      mainWindow.webContents.send('database-ready', { 
+        success: dbReady, 
+        hasDatabase: dbReady 
+      });
+    }
+  }, 2000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

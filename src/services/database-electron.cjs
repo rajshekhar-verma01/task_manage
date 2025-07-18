@@ -1,13 +1,20 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
+const { app } = require('electron');
 
 class DatabaseService {
-  constructor() {
+  constructor(userDataPath = null) {
     try {
-      // Use a reliable data directory that always exists
-      const dataPath = path.join(os.homedir(), '.task-management-app', 'data');
+      // Use provided userDataPath or fallback to home directory
+      let dataPath;
+      if (userDataPath) {
+        dataPath = path.join(userDataPath, 'data');
+      } else {
+        // Fallback for when Electron app context isn't available
+        const os = require('os');
+        dataPath = path.join(os.homedir(), '.task-management-app', 'data');
+      }
       
       // Ensure the directory exists
       if (!fs.existsSync(dataPath)) {
