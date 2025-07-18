@@ -525,7 +525,6 @@ class DatabaseService {
           UPDATE tasks SET progress = ?, updated_at = ? WHERE id = ?
         `);
         updateStmt.run(progressPercentage, new Date().toISOString(), result.task_id);
-        console.log(`Updated task ${result.task_id} progress to ${progressPercentage}%`);
       }
     } catch (error) {
       console.error('Error updating task progress:', error);
@@ -537,7 +536,7 @@ class DatabaseService {
     try {
       const stmt = this.db.prepare('DELETE FROM tasks WHERE id = ?');
       stmt.run(taskId);
-      console.log(`Deleted task: ${taskId}`);
+      console.log(`Deleted task ${taskId}`);
       return { success: true };
     } catch (error) {
       console.error('Error deleting task:', error);
@@ -549,7 +548,7 @@ class DatabaseService {
     try {
       const stmt = this.db.prepare('DELETE FROM recurring_tasks WHERE id = ?');
       stmt.run(taskId);
-      console.log(`Deleted recurring task: ${taskId}`);
+      console.log(`Deleted recurring task ${taskId}`);
       return { success: true };
     } catch (error) {
       console.error('Error deleting recurring task:', error);
@@ -561,7 +560,7 @@ class DatabaseService {
     try {
       const stmt = this.db.prepare('DELETE FROM blog_entries WHERE id = ?');
       stmt.run(entryId);
-      console.log(`Deleted blog entry: ${entryId}`);
+      console.log(`Deleted blog entry ${entryId}`);
       return { success: true };
     } catch (error) {
       console.error('Error deleting blog entry:', error);
@@ -575,7 +574,7 @@ class DatabaseService {
       household: 'Household Work',
       personal: 'Personal Development',
       official: 'Official Work',
-      blog: 'Blog & Learning',
+      blog: 'Blog',
     };
 
     const sectionColors = {
@@ -606,10 +605,7 @@ class DatabaseService {
   }
 
   close() {
-    if (this.db) {
-      this.db.close();
-      console.log('Database connection closed');
-    }
+    this.db.close();
   }
 }
 
