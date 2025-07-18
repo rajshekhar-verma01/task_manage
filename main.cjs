@@ -7,10 +7,9 @@ const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
 let db;
 
-// Initialize database after app is ready
-async function initializeDatabase() {
+// Initialize database
+function initializeDatabase() {
   try {
-    // Use require for CommonJS compatibility
     const DatabaseService = require('./src/services/database-electron.cjs');
     db = new DatabaseService();
     console.log('✓ Database service initialized successfully');
@@ -63,9 +62,9 @@ function createWindow() {
   });
   
   // Initialize database after window is ready
-  mainWindow.webContents.once('dom-ready', async () => {
+  mainWindow.webContents.once('dom-ready', () => {
     console.log('DOM ready, initializing database...');
-    const dbReady = await initializeDatabase();
+    const dbReady = initializeDatabase();
     
     // Send database ready event to renderer
     mainWindow.webContents.send('database-ready', { 
