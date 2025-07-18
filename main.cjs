@@ -26,6 +26,25 @@ function initializeDatabase() {
   }
 }
 
+// Check if server is running
+const checkServer = () => {
+  return new Promise((resolve) => {
+    const http = require('http');
+    const req = http.request({
+      hostname: 'localhost',
+      port: 5000,
+      method: 'GET',
+      timeout: 3000
+    }, (res) => {
+      resolve(res.statusCode === 200);
+    });
+    
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => resolve(false));
+    req.end();
+  });
+};
+
 function createWindow() {
   console.log('Creating main window...');
   
@@ -40,6 +59,7 @@ function createWindow() {
       enableRemoteModule: false,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: false, // Allow localhost in development
+      allowRunningInsecureContent: true,
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
@@ -47,11 +67,37 @@ function createWindow() {
 
   // Load the appropriate URL/file
   if (isDev) {
-    console.log('Loading development server...');
-    mainWindow.loadURL('http://localhost:5000');
-    mainWindow.webContents.openDevTools();
+    console.log('Development mode - checking server...');
+    
+    // Wait for server to be ready
+    const waitForServer = async (retries = 15) => {
+      for (let i = 0; i < retries; i++) {
+        const isReady = await checkServer();
+        if (isReady) {
+          console.log('✓ Development server is ready, loading URL...');
+          await mainWindow.loadURL('http://localhost:5000');
+          mainWindow.webContents.openDevTools();
+          return true;
+        }
+        console.log(`Waiting for server... (${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      console.error('✗ Development server not responding after retries');
+      dialog.showErrorBox('Server Connection Error', 
+        'Could not connect to development server on port 5000.\n\n' +
+        'Please ensure the server is running by executing:\nnpm run dev'
+      );
+      return false;
+    };
+    
+    waitForServer().then(success => {
+      if (success) {
+        console.log('Successfully loaded development server');
+      }
+    });
   } else {
-    console.log('Loading production build...');
+    console.log('Production mode - loading built files...');
     mainWindow.loadFile(path.join(__dirname, 'dist/public/index.html'));
   }
 
@@ -61,7 +107,7 @@ function createWindow() {
     mainWindow.show();
   });
   
-  // Initialize database after window is ready
+  // Initialize database after window content loads
   mainWindow.webContents.once('dom-ready', () => {
     console.log('DOM ready, initializing database...');
     const dbReady = initializeDatabase();
@@ -76,6 +122,15 @@ function createWindow() {
   // Add error handling
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
     console.error('Failed to load:', errorCode, errorDescription, validatedURL);
+    dialog.showErrorBox('Load Failed', `Failed to load ${validatedURL}: ${errorDescription}`);
+  });
+
+  mainWindow.webContents.on('did-start-loading', () => {
+    console.log('Started loading content...');
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Finished loading content successfully');
   });
 
   mainWindow.on('closed', () => {
@@ -196,14 +251,14 @@ ipcMain.handle('get-section-data', async (event, sectionId) => {
   return db.getSectionData(sectionId);
 });
 
-// Notification settings
+// Notification settings (single handler only)
 ipcMain.handle('save-notification-settings', async (event, settings) => {
-  // Save notification settings to local storage or database
+  console.log('Saving notification settings:', settings);
   return { success: true };
 });
 
 ipcMain.handle('load-notification-settings', async (event) => {
-  // Load notification settings
+  console.log('Loading notification settings');
   return {};
 });
 
@@ -222,7 +277,7 @@ ipcMain.handle('show-notification', async (event, { title, body, tasks }) => {
 });
 
 ipcMain.handle('update-notification-intervals', async (event, allTasks) => {
-  // Handle notification scheduling
+  console.log('Updating notification intervals for tasks');
   return { success: true };
 });
 
@@ -233,5 +288,7 @@ function checkDueTasks() {
   }
 }
 
-// Set up periodic due task checking
-setInterval(checkDueTasks, 60000); // Check every minute
+// Set up periodic due task checking (every 5 minutes)
+setInterval(checkDueTasks, 5 * 60 * 1000);
+
+console.log('Electron main process initialized');
