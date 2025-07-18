@@ -1,25 +1,22 @@
 // JSON-based database service that doesn't require native modules
-import fs from 'fs';
-import path from 'path';
-import { app } from 'electron';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 class JSONDatabaseService {
   constructor() {
     try {
-      // Get user data directory for database storage
-      const userDataPath = app.getPath('userData');
+      // Use user home directory for cross-platform compatibility
+      const homeDir = os.homedir();
+      const appDataDir = path.join(homeDir, '.task-management-app');
       
       // Ensure the directory exists
-      if (!fs.existsSync(userDataPath)) {
-        fs.mkdirSync(userDataPath, { recursive: true });
+      if (!fs.existsSync(appDataDir)) {
+        fs.mkdirSync(appDataDir, { recursive: true });
       }
       
-      this.dbPath = path.join(userDataPath, 'taskflow-data.json');
-      console.log('Database path:', this.dbPath);
+      this.dbPath = path.join(appDataDir, 'taskflow-data.json');
+      console.log('JSON Database path:', this.dbPath);
       
       this.initializeDatabase();
       console.log('JSON Database initialized successfully');
@@ -36,7 +33,12 @@ class JSONDatabaseService {
         tasks: {},
         recurringTasks: {},
         blogEntries: [],
-        categories: {},
+        categories: {
+          household: ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+          personal: ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+          official: ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+          blog: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing']
+        },
         subGoals: {},
         metadata: {
           version: '1.0.0',
@@ -74,7 +76,12 @@ class JSONDatabaseService {
       tasks: {},
       recurringTasks: {},
       blogEntries: [],
-      categories: {},
+      categories: {
+        household: ['Cleaning', 'Maintenance', 'Shopping', 'Cooking'],
+        personal: ['Learning', 'Exercise', 'Reading', 'Class', 'Skill Building'],
+        official: ['Meetings', 'Projects', 'Reports', 'Planning', 'Communication'],
+        blog: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing']
+      },
       subGoals: {},
       metadata: {
         version: '1.0.0',
@@ -394,48 +401,202 @@ class JSONDatabaseService {
     }
   }
 
-  // Database maintenance
-  backup() {
+  // Status update operations for other entities
+  updateRecurringTaskStatus(taskId, status) {
     try {
       const data = this.loadData();
-      const backupPath = this.dbPath + '.backup.' + Date.now();
-      fs.writeFileSync(backupPath, JSON.stringify(data, null, 2), 'utf8');
-      console.log(`Database backed up to: ${backupPath}`);
-      return { success: true, backupPath };
+      let updated = false;
+
+      for (const sectionId in data.recurringTasks) {
+        const taskIndex = data.recurringTasks[sectionId].findIndex(t => t.id === taskId);
+        if (taskIndex >= 0) {
+          data.recurringTasks[sectionId][taskIndex].status = status;
+          data.recurringTasks[sectionId][taskIndex].updatedAt = new Date().toISOString();
+          updated = true;
+          break;
+        }
+      }
+
+      if (updated) {
+        const result = this.saveData(data);
+        if (result.success) {
+          console.log(`Recurring task ${taskId} status updated to ${status}`);
+          return { success: true };
+        }
+        return result;
+      }
+
+      return { success: false, error: 'Recurring task not found' };
     } catch (error) {
-      console.error('Error creating backup:', error);
+      console.error('Error updating recurring task status:', error);
       return { success: false, error: error.message };
     }
   }
 
-  getStats() {
+  updateBlogEntryStatus(entryId, status) {
     try {
       const data = this.loadData();
-      const stats = {
-        totalTasks: 0,
-        totalRecurringTasks: 0,
-        totalBlogEntries: data.blogEntries.length,
-        totalCategories: 0,
-        lastModified: data.metadata.lastModified,
-      };
-
-      for (const sectionId in data.tasks) {
-        stats.totalTasks += data.tasks[sectionId].length;
+      const entryIndex = data.blogEntries.findIndex(e => e.id === entryId);
+      
+      if (entryIndex >= 0) {
+        data.blogEntries[entryIndex].status = status;
+        data.blogEntries[entryIndex].updatedAt = new Date().toISOString();
+        
+        const result = this.saveData(data);
+        if (result.success) {
+          console.log(`Blog entry ${entryId} status updated to ${status}`);
+          return { success: true };
+        }
+        return result;
       }
+
+      return { success: false, error: 'Blog entry not found' };
+    } catch (error) {
+      console.error('Error updating blog entry status:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  updateSubGoalStatus(subGoalId, status) {
+    try {
+      const data = this.loadData();
+      let updated = false;
+      let parentTaskId = null;
+
+      // Find and update the sub-goal
+      for (const taskId in data.subGoals) {
+        const subGoalIndex = data.subGoals[taskId].findIndex(sg => sg.id === subGoalId);
+        if (subGoalIndex >= 0) {
+          data.subGoals[taskId][subGoalIndex].status = status;
+          data.subGoals[taskId][subGoalIndex].completed = status === 'completed';
+          data.subGoals[taskId][subGoalIndex].updatedAt = new Date().toISOString();
+          parentTaskId = taskId;
+          updated = true;
+          break;
+        }
+      }
+
+      if (updated) {
+        // Update parent task progress
+        if (parentTaskId && data.subGoals[parentTaskId]) {
+          const subGoals = data.subGoals[parentTaskId];
+          const completedCount = subGoals.filter(sg => sg.completed).length;
+          const progress = subGoals.length > 0 ? Math.round((completedCount / subGoals.length) * 100) : 0;
+          
+          // Find and update the parent task
+          for (const sectionId in data.tasks) {
+            const taskIndex = data.tasks[sectionId].findIndex(t => t.id === parentTaskId);
+            if (taskIndex >= 0) {
+              data.tasks[sectionId][taskIndex].progress = progress;
+              data.tasks[sectionId][taskIndex].updatedAt = new Date().toISOString();
+              break;
+            }
+          }
+        }
+
+        const result = this.saveData(data);
+        if (result.success) {
+          console.log(`Sub-goal ${subGoalId} status updated to ${status}`);
+          return { success: true };
+        }
+        return result;
+      }
+
+      return { success: false, error: 'Sub-goal not found' };
+    } catch (error) {
+      console.error('Error updating sub-goal status:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Delete operations
+  deleteRecurringTask(taskId) {
+    try {
+      const data = this.loadData();
+      let deleted = false;
 
       for (const sectionId in data.recurringTasks) {
-        stats.totalRecurringTasks += data.recurringTasks[sectionId].length;
+        const taskIndex = data.recurringTasks[sectionId].findIndex(t => t.id === taskId);
+        if (taskIndex >= 0) {
+          data.recurringTasks[sectionId].splice(taskIndex, 1);
+          deleted = true;
+          break;
+        }
       }
 
-      for (const sectionId in data.categories) {
-        stats.totalCategories += data.categories[sectionId].length;
+      if (deleted) {
+        const result = this.saveData(data);
+        if (result.success) {
+          console.log(`Recurring task ${taskId} deleted`);
+          return { success: true };
+        }
+        return result;
       }
 
-      return stats;
+      return { success: false, error: 'Recurring task not found' };
     } catch (error) {
-      console.error('Error getting stats:', error);
-      return { error: error.message };
+      console.error('Error deleting recurring task:', error);
+      return { success: false, error: error.message };
     }
+  }
+
+  deleteBlogEntry(entryId) {
+    try {
+      const data = this.loadData();
+      const entryIndex = data.blogEntries.findIndex(e => e.id === entryId);
+      
+      if (entryIndex >= 0) {
+        data.blogEntries.splice(entryIndex, 1);
+        
+        const result = this.saveData(data);
+        if (result.success) {
+          console.log(`Blog entry ${entryId} deleted`);
+          return { success: true };
+        }
+        return result;
+      }
+
+      return { success: false, error: 'Blog entry not found' };
+    } catch (error) {
+      console.error('Error deleting blog entry:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Get all data for a section
+  getSectionData(sectionId) {
+    const sectionNames = {
+      household: 'Household Work',
+      personal: 'Personal Development',
+      official: 'Official Work',
+      blog: 'Blog & Learning',
+    };
+
+    const sectionColors = {
+      household: 'green',
+      personal: 'blue',
+      official: 'purple',
+      blog: 'orange',
+    };
+
+    if (sectionId === 'blog') {
+      return {
+        id: sectionId,
+        name: sectionNames[sectionId],
+        color: sectionColors[sectionId],
+        entries: this.getBlogEntries(),
+        categories: this.getCategories(sectionId),
+      };
+    }
+
+    return {
+      id: sectionId,
+      name: sectionNames[sectionId],
+      color: sectionColors[sectionId],
+      tasks: this.getTasks(sectionId),
+      recurringTasks: this.getRecurringTasks(sectionId),
+      categories: this.getCategories(sectionId),
+    };
   }
 
   close() {
@@ -444,4 +605,4 @@ class JSONDatabaseService {
   }
 }
 
-export default JSONDatabaseService;
+module.exports = JSONDatabaseService;

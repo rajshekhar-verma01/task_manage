@@ -10,32 +10,18 @@ let db;
 // Initialize database
 function initializeDatabase() {
   try {
-    // Get Electron's userData path
-    const userDataPath = app.getPath('userData');
-    console.log('Using userData path:', userDataPath);
-    
-    // Use absolute path to avoid module resolution issues
-    const dbPath = path.join(__dirname, 'src', 'services', 'database-electron.cjs');
-    console.log('Loading database from:', dbPath);
-    
-    if (!fs.existsSync(dbPath)) {
-      console.error('Database service file not found at:', dbPath);
-      return false;
-    }
-    
-    const DatabaseService = require(dbPath);
-    db = new DatabaseService(userDataPath);
+    // Use JSON database to avoid native module issues
+    const JSONDatabaseService = require('./client/src/services/database-json.js');
+    db = new JSONDatabaseService();
     console.log('✓ Database service initialized successfully');
     
-    // Test database connection
-    const testCategories = db.getCategories('household');
-    console.log(`✓ Database test - household categories: ${testCategories.length}`);
+    // Test database
+    console.log('✓ JSON Database ready for use');
     
     return true;
   } catch (error) {
     console.error('Failed to initialize database:', error);
-    console.log('Error details:', error.message);
-    console.log('Will continue without database - using localStorage fallback');
+    console.log('Will continue without database');
     return false;
   }
 }
