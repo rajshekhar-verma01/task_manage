@@ -1,0 +1,17 @@
+{
+  "name": "task-management-electron-app",
+  "version": "1.0.0",
+  "main": "electron-main.js",
+  "type": "module",
+  "description": "Task Management Desktop Application",
+  "author": "Task Manager User",
+  "license": "MIT",
+  "scripts": {
+    "electron": "electron .",
+    "electron-dev": "NODE_ENV=development electron .",
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^37.2.3"
+  }
+}

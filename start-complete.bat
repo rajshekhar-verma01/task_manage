@@ -25,8 +25,8 @@ REM Set environment variables
 set NODE_ENV=development
 set ELECTRON_ENABLE_LOGGING=1
 
-REM Start Electron
-npx electron electron-main.js
+REM Start Electron with configuration
+node launch-with-config.cjs
 
 echo.
 echo Application closed.
