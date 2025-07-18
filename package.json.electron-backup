@@ -1,0 +1,31 @@
+{
+  "name": "task-management-app",
+  "version": "1.0.0",
+  "description": "Task Management Desktop Application",
+  "main": "main.js",
+  "author": "Task Manager User",
+  "license": "MIT",
+  "scripts": {
+    "electron": "electron .",
+    "electron-dev": "NODE_ENV=development electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "electron": "^37.2.3",
+    "better-sqlite3": "^12.2.0"
+  },
+  "build": {
+    "appId": "com.taskmanager.app",
+    "productName": "Task Management App",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "client/**/*",
+      "data/**/*",
+      "node_modules/**/*"
+    ]
+  }
+}
