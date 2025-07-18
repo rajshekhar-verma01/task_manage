@@ -2,8 +2,21 @@
 
 ## Quick Start (Recommended)
 
-I've created a startup script for you. Simply run:
+### For Windows Users:
+Due to Windows NODE_ENV issues, I've created Windows-specific scripts:
 
+```bash
+# Option 1: All-in-one script (starts server + Electron)
+start-app-windows.bat
+
+# Option 2: Manual two-step process
+# Step 1: Start development server
+start-dev-windows.bat
+# Step 2: In another terminal, start Electron
+npx electron .
+```
+
+### For Linux/Mac Users:
 ```bash
 node start-electron.cjs
 ```
@@ -20,13 +33,14 @@ If you want to add the scripts to your `package.json` manually, add these script
 ```json
 {
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "cross-env NODE_ENV=development tsx server/index.ts",
+    "dev-windows": "cross-env NODE_ENV=development tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
+    "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "electron": "concurrently \"npm run dev\" \"wait-on http://localhost:5000 && electron .\"",
-    "electron-dev": "NODE_ENV=development electron .",
+    "electron": "concurrently \"npm run dev-windows\" \"wait-on http://localhost:5000 && electron .\"",
+    "electron-dev": "cross-env NODE_ENV=development electron .",
     "electron-pack": "electron-builder",
     "electron-build": "npm run build && electron-builder",
     "preelectron-pack": "npm run build"
@@ -38,6 +52,8 @@ Then you can run:
 ```bash
 npm run electron
 ```
+
+**Note:** I've installed `cross-env` which makes NODE_ENV work on Windows. The original `dev` script should now work too!
 
 ## Alternative Methods
 
@@ -77,19 +93,24 @@ The SQLite database will be created in:
 
 ### Common Issues:
 
-1. **"Cannot find module" errors**:
+1. **NODE_ENV not recognized (Windows)**:
+   - ✅ **FIXED**: I've installed `cross-env` to solve this
+   - Use the Windows-specific scripts: `start-dev-windows.bat` or `start-app-windows.bat`
+   - The original `npm run dev` should now work too!
+
+2. **"Cannot find module" errors**:
    - Ensure all dependencies are installed: `npm install`
    - The database service uses CommonJS syntax while the package.json specifies ES modules
 
-2. **Database errors**:
+3. **Database errors**:
    - Check that the `data` directory exists
    - Ensure write permissions for the database file
 
-3. **Electron window not loading**:
+4. **Electron window not loading**:
    - Ensure the development server is running on port 5000
    - Check the browser console for any errors
 
-4. **libgbm.so.1 missing (Linux)**:
+5. **libgbm.so.1 missing (Linux)**:
    - This is a system dependency issue in some Linux environments
    - Install required graphics libraries: `sudo apt-get install libgbm-dev`
 
