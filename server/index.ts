@@ -1,6 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
@@ -37,6 +42,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  try {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -67,4 +73,8 @@ app.use((req, res, next) => {
   }, () => {
     log(`serving on port ${port}`);
   });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
 })();
