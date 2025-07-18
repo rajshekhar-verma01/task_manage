@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import DatabaseService from './client/src/services/database-electron.js';
+import DatabaseService from './src/services/database-electron.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,20 +10,27 @@ const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
 let db;
 
-// Initialize database
-function initializeDatabase() {
+// Initialize database after app is ready
+async function initializeDatabase() {
   try {
     db = new DatabaseService();
-    console.log('Database initialized successfully');
+    console.log('✓ Database service initialized successfully');
+    
+    // Test database connection
+    const testCategories = db.getCategories('household');
+    console.log(`✓ Database test - household categories: ${testCategories.length}`);
+    
     return true;
   } catch (error) {
     console.error('Failed to initialize database:', error);
-    dialog.showErrorBox('Database Error', 'Failed to initialize database: ' + error.message);
+    console.log('Will continue without database - using localStorage fallback');
     return false;
   }
 }
 
 function createWindow() {
+  console.log('Creating main window...');
+  
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -34,30 +41,43 @@ function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false, // Allow localhost in development
     },
-    icon: path.join(__dirname, 'assets/icon.png'), // Add app icon if you have one
     titleBarStyle: 'default',
     show: false, // Don't show until ready
   });
 
   // Load the appropriate URL/file
   if (isDev) {
+    console.log('Loading development server...');
     mainWindow.loadURL('http://localhost:5000');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
+    console.log('Loading production build...');
+    mainWindow.loadFile(path.join(__dirname, 'dist/public/index.html'));
   }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
+    console.log('Window ready to show');
     mainWindow.show();
+  });
+  
+  // Initialize database after window is ready
+  mainWindow.webContents.once('dom-ready', async () => {
+    console.log('DOM ready, initializing database...');
+    const dbReady = await initializeDatabase();
     
-    // Send database ready event
-    if (db) {
-      mainWindow.webContents.send('database-ready', { success: true, hasDatabase: true });
-    } else {
-      mainWindow.webContents.send('database-ready', { success: false, hasDatabase: false });
-    }
+    // Send database ready event to renderer
+    mainWindow.webContents.send('database-ready', { 
+      success: dbReady, 
+      hasDatabase: dbReady 
+    });
+  });
+
+  // Add error handling
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', errorCode, errorDescription, validatedURL);
   });
 
   mainWindow.on('closed', () => {
@@ -70,7 +90,7 @@ function createWindow() {
 
 // App event handlers
 app.whenReady().then(() => {
-  const dbInitialized = initializeDatabase();
+  console.log('Electron app ready');
   createWindow();
 
   app.on('activate', () => {
