@@ -10,6 +10,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   updateNotificationIntervals: (allTasks) => ipcRenderer.invoke('update-notification-intervals', allTasks),
   
+  // Database ready event
+  onDatabaseReady: (callback) => {
+    ipcRenderer.on('database-ready', callback);
+    return () => ipcRenderer.removeListener('database-ready', callback);
+  },
+  
   // Database operations
   db: {
     saveTask: (task, sectionId) => ipcRenderer.invoke('db-save-task', task, sectionId),

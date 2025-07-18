@@ -45,17 +45,27 @@ export const useTaskManager = () => {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const initializeData = async () => {
-      if (window.electronAPI && window.electronAPI.db) {
+    // Wait for database to be ready
+    const handleDatabaseReady = (event: any, { success, hasDatabase }: { success: boolean, hasDatabase: boolean }) => {
+      console.log('Database ready event received:', { success, hasDatabase });
+      if (success && hasDatabase) {
         console.log('Loading data from SQLite database...');
-        await loadFromDatabase();
+        loadFromDatabase();
       } else {
         console.log('Loading data from localStorage...');
         loadFromLocalStorage();
       }
     };
-    
-    initializeData();
+
+    // Listen for database ready event
+    if (window.electronAPI) {
+      const cleanup = window.electronAPI.onDatabaseReady(handleDatabaseReady);
+      return cleanup;
+    } else {
+      // Fallback for web version
+      loadFromLocalStorage();
+      return () => {};
+    }
   }, []);
 
   // Helper function to ensure safe data structure
@@ -131,32 +141,42 @@ export const useTaskManager = () => {
 
       for (const sectionId of sections) {
         console.log(`Loading data for section: ${sectionId}`);
-        if (sectionId === 'blog') {
-          const entries = await window.electronAPI.db.getBlogEntries();
-          const categories = await window.electronAPI.db.getCategories(sectionId);
-          console.log(`Blog: ${entries.length} entries, ${categories.length} categories`);
-          loadedData.blog = {
-            ...loadedData.blog,
-            entries: Array.isArray(entries) ? entries : [],
-            categories: Array.isArray(categories) ? categories : loadedData.blog.categories,
-          };
-        } else {
-          const sectionTasks = await window.electronAPI.db.getTasks(sectionId);
-          const recurringTasks = await window.electronAPI.db.getRecurringTasks(sectionId);
-          const categories = await window.electronAPI.db.getCategories(sectionId);
-          console.log(`${sectionId}: ${sectionTasks.length} tasks, ${recurringTasks.length} recurring, ${categories.length} categories`);
-          
-          loadedData[sectionId as keyof TaskData] = {
-            ...loadedData[sectionId as keyof TaskData],
-            tasks: Array.isArray(sectionTasks) ? sectionTasks : [],
-            recurringTasks: Array.isArray(recurringTasks) ? recurringTasks : [],
-            categories: Array.isArray(categories) ? categories : loadedData[sectionId as keyof TaskData].categories,
-          };
+        try {
+          if (sectionId === 'blog') {
+            const entries = await window.electronAPI.db.getBlogEntries();
+            const categories = await window.electronAPI.db.getCategories(sectionId);
+            console.log(`Blog: ${entries?.length || 0} entries, ${categories?.length || 0} categories`);
+            loadedData.blog = {
+              ...loadedData.blog,
+              entries: Array.isArray(entries) ? entries : [],
+              categories: Array.isArray(categories) && categories.length > 0 ? categories : loadedData.blog.categories,
+            };
+          } else {
+            const sectionTasks = await window.electronAPI.db.getTasks(sectionId);
+            const recurringTasks = await window.electronAPI.db.getRecurringTasks(sectionId);
+            const categories = await window.electronAPI.db.getCategories(sectionId);
+            console.log(`${sectionId}: ${sectionTasks?.length || 0} tasks, ${recurringTasks?.length || 0} recurring, ${categories?.length || 0} categories`);
+            
+            loadedData[sectionId as keyof TaskData] = {
+              ...loadedData[sectionId as keyof TaskData],
+              tasks: Array.isArray(sectionTasks) ? sectionTasks : [],
+              recurringTasks: Array.isArray(recurringTasks) ? recurringTasks : [],
+              categories: Array.isArray(categories) && categories.length > 0 ? categories : loadedData[sectionId as keyof TaskData].categories,
+            };
+          }
+        } catch (sectionError) {
+          console.error(`Error loading section ${sectionId}:`, sectionError);
         }
       }
 
       setTasks(loadedData);
       console.log('Database load completed successfully');
+      console.log('Loaded data summary:', {
+        household: { tasks: loadedData.household.tasks.length, categories: loadedData.household.categories.length },
+        personal: { tasks: loadedData.personal.tasks.length, categories: loadedData.personal.categories.length },
+        official: { tasks: loadedData.official.tasks.length, categories: loadedData.official.categories.length },
+        blog: { entries: loadedData.blog.entries.length, categories: loadedData.blog.categories.length }
+      });
       
       // Update recurring task statuses after loading from database
       setTimeout(() => {

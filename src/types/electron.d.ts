@@ -4,6 +4,7 @@ export interface ElectronAPI {
   showNotification: (data: { title: string; body: string; tasks?: any[] }) => Promise<{ success: boolean }>;
   onCheckDueTasks: (callback: () => void) => void;
   updateNotificationIntervals: (allTasks: any) => Promise<{ success: boolean }>;
+  onDatabaseReady: (callback: (event: any, data: { success: boolean, hasDatabase: boolean }) => void) => () => void;
   db: {
     saveTask: (task: any, sectionId: string) => Promise<{ success: boolean }>;
     getTasks: (sectionId: string) => Promise<any[]>;

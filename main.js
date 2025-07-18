@@ -7,12 +7,17 @@ const { EventEmitter } = require('events');
 // Database service
 let dbService = null;
 
-// Try to initialize database
-const initializeDatabase = () => {
+// Initialize database with better error handling
+const initializeDatabase = async () => {
   try {
     const DatabaseService = require('./src/services/database-electron.js');
     dbService = new DatabaseService();
     console.log('Database service initialized successfully');
+    
+    // Test database connection
+    const testCategories = dbService.getCategories('household');
+    console.log('Database test - household categories:', testCategories.length);
+    
     return true;
   } catch (error) {
     console.error('Failed to initialize database service:', error);
@@ -394,10 +399,6 @@ function createWindow() {
   console.log('Creating Electron window...');
   console.log('Development mode:', isDev);
   
-  // Initialize database service
-  const dbInitialized = initializeDatabase();
-  console.log('Database initialization:', dbInitialized ? 'SUCCESS' : 'FAILED - using localStorage fallback');
-  
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -471,6 +472,14 @@ function createWindow() {
 
   mainWindow.webContents.on('dom-ready', () => {
     console.log('DOM is ready');
+    
+    // Initialize database after DOM is ready
+    initializeDatabase().then((success) => {
+      console.log('Database initialization:', success ? 'SUCCESS' : 'FAILED - using localStorage fallback');
+      
+      // Send database status to renderer
+      mainWindow.webContents.send('database-ready', { success, hasDatabase: !!dbService });
+    });
     
     // Load and setup notification settings
     const settings = loadNotificationSettings();
