@@ -44,8 +44,12 @@ function createWindow() {
   // Load the appropriate URL/file
   if (isDev) {
     // Development: load from development server
-    mainWindow.loadURL('http://localhost:5000');
-    // Open DevTools in development
+    console.log('Loading development server at http://localhost:5000');
+    mainWindow.loadURL('http://localhost:5000').catch(err => {
+      console.error('Failed to load URL:', err);
+      dialog.showErrorBox('Load Error', 'Failed to connect to development server on port 5000. Make sure the server is running.');
+    });
+    // Open DevTools in development for debugging
     mainWindow.webContents.openDevTools();
   } else {
     // Production: load from built files
@@ -62,6 +66,25 @@ function createWindow() {
     } else {
       mainWindow.webContents.send('database-ready', { success: false, hasDatabase: false });
     }
+  });
+
+  // Add debugging for load events
+  mainWindow.webContents.on('did-start-loading', () => {
+    console.log('Started loading content...');
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Finished loading content successfully');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', errorCode, errorDescription, validatedURL);
+    dialog.showErrorBox('Load Failed', `Failed to load ${validatedURL}: ${errorDescription}`);
+  });
+
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer process crashed');
+    dialog.showErrorBox('Crash', 'The application crashed unexpectedly');
   });
 
   mainWindow.on('closed', () => {
