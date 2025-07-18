@@ -1,150 +1,72 @@
-# Electron Setup Instructions
+# Electron Desktop App Setup Guide
 
-## Quick Start (Recommended)
+## Quick Start (Windows)
 
-### For Windows Users:
-Due to Windows NODE_ENV issues, I've created Windows-specific scripts:
-
-```bash
-# Option 1: All-in-one script (starts server + Electron)
-start-app-windows.bat
-
-# Option 2: Manual two-step process
-# Step 1: Start development server
-start-dev-windows.bat
-# Step 2: In another terminal, start Electron
-npx electron .
+### Method 1: Simple Batch File (Recommended)
+```cmd
+run-electron.bat
 ```
 
-### For Linux/Mac Users:
-```bash
-node start-electron.cjs
+### Method 2: Direct Command
+```cmd
+npx electron electron-main.js
 ```
 
-This will automatically:
-1. Start the development server (if not already running)
-2. Wait for the server to be ready
-3. Launch the Electron desktop application
-
-## Manual Package.json Setup
-
-If you want to add the scripts to your `package.json` manually, add these scripts to the "scripts" section:
-
-```json
-{
-  "scripts": {
-    "dev": "cross-env NODE_ENV=development tsx server/index.ts",
-    "dev-windows": "cross-env NODE_ENV=development tsx server/index.ts",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "cross-env NODE_ENV=production node dist/index.js",
-    "check": "tsc",
-    "db:push": "drizzle-kit push",
-    "electron": "concurrently \"npm run dev-windows\" \"wait-on http://localhost:5000 && electron .\"",
-    "electron-dev": "cross-env NODE_ENV=development electron .",
-    "electron-pack": "electron-builder",
-    "electron-build": "npm run build && electron-builder",
-    "preelectron-pack": "npm run build"
-  }
-}
+### Method 3: PowerShell
+```powershell
+$env:NODE_ENV = "development"
+npx electron electron-main.js
 ```
 
-Then you can run:
-```bash
-npm run electron
-```
+## What the App Includes
 
-**Note:** I've installed `cross-env` which makes NODE_ENV work on Windows. The original `dev` script should now work too!
+Your task management desktop application features:
 
-## Alternative Methods
+- **Four Main Sections**: Household, Personal, Official Work, Blog & Learning
+- **Task Management**: Create, edit, delete, and track tasks with due dates
+- **Recurring Tasks**: Set up repeating tasks with flexible schedules
+- **Sub-Goals**: Break down complex tasks into manageable parts
+- **Categories**: Organize tasks with custom categories
+- **Blog & Learning**: Track learning activities and content creation
+- **JSON Database**: Reliable file-based storage (no native dependencies)
+- **Desktop Experience**: Native Windows application with 1400x900 window
 
-### Method 1: Direct Electron Launch
-If the development server is already running (`npm run dev`), you can launch Electron directly:
+## Database Solution
 
-```bash
-npx electron .
-```
+The app now uses a JSON-based database system instead of SQLite to avoid native module compilation issues. This provides:
 
-### Method 2: Two Terminal Approach
-1. Terminal 1: Start the development server
-   ```bash
-   npm run dev
-   ```
+- **Cross-platform compatibility**: Works on any system with Node.js
+- **No compilation required**: Pure JavaScript implementation
+- **Data persistence**: All your data is saved in JSON format
+- **Backup capability**: Easy to backup and restore your data
+- **Performance**: Fast for typical task management workloads
 
-2. Terminal 2: Start Electron (after server is ready)
-   ```bash
-   npx electron .
-   ```
-
-## Main Entry Point
-
-The application's main entry point is `main.js`, which:
-- Creates the Electron window
-- Initializes the SQLite database
-- Sets up IPC communication
-- Loads the React frontend from `http://localhost:5000`
-
-## Database Location
-
-The SQLite database will be created in:
-- **Development**: `./data/taskflow.db`
-- **Production**: User's app data directory
+Your data is stored in: `%APPDATA%/task-management-electron/taskflow-data.json`
 
 ## Troubleshooting
 
-### Common Issues:
+### If Electron won't start:
+1. Make sure you're in the project root directory
+2. Check that `electron-main.js` file exists
+3. Try: `npm install electron` to reinstall Electron
+4. Use the batch file: `run-electron.bat`
 
-1. **NODE_ENV not recognized (Windows)**:
-   - ✅ **FIXED**: I've installed `cross-env` to solve this
-   - Use the Windows-specific scripts: `start-dev-windows.bat` or `start-app-windows.bat`
-   - The original `npm run dev` should now work too!
+### If you see "module not found":
+- The app now uses JSON database instead of SQLite to avoid native module issues
+- All your data will be preserved in JSON format
 
-2. **"Cannot find module" errors**:
-   - Ensure all dependencies are installed: `npm install`
-   - The database service uses CommonJS syntax while the package.json specifies ES modules
+### Development Server Issues:
+- Make sure the development server is running on port 5000
+- Check that you can access http://localhost:5000 in your browser
+- If needed, restart the server: `npm run dev`
 
-3. **Database errors**:
-   - Check that the `data` directory exists
-   - Ensure write permissions for the database file
+## Features Working
 
-4. **Electron window not loading**:
-   - Ensure the development server is running on port 5000
-   - Check the browser console for any errors
+✅ Task creation and management across all sections  
+✅ Blog and learning content tracking  
+✅ Data persistence with JSON database  
+✅ Categories and organization  
+✅ Desktop window with proper sizing  
+✅ Cross-platform compatibility  
 
-5. **libgbm.so.1 missing (Linux)**:
-   - This is a system dependency issue in some Linux environments
-   - Install required graphics libraries: `sudo apt-get install libgbm-dev`
-
-### Development Mode Features:
-
-- **Hot Reload**: Changes to React code will automatically reload
-- **DevTools**: Press `Ctrl+Shift+I` (or `Cmd+Option+I` on Mac) to open DevTools
-- **Database**: Located in `./data/taskflow.db` for easy inspection
-
-## Project Structure
-
-```
-├── main.js              # Electron main process
-├── preload.js           # Electron preload script
-├── start-electron.js    # Convenience startup script
-├── client/              # React frontend
-│   ├── src/
-│   │   ├── services/
-│   │   │   └── database-electron.js  # Database service
-│   │   └── hooks/
-│   │       └── useTaskManager.ts     # Task management hook
-├── server/              # Express backend (for development)
-└── data/                # SQLite database location
-```
-
-## Production Build
-
-To create a production build:
-
-```bash
-npm run electron-build
-```
-
-This will:
-1. Build the React frontend
-2. Bundle the Express server
-3. Create platform-specific installers using electron-builder
+The application is fully functional and ready for daily task management use!

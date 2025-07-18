@@ -2,7 +2,7 @@
 import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import DatabaseService from './client/src/services/database-electron.js';
+import JSONDatabaseService from './client/src/services/database-json.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,11 +14,11 @@ let db;
 // Initialize database
 function initializeDatabase() {
   try {
-    db = new DatabaseService();
-    console.log('Database initialized successfully');
+    db = new JSONDatabaseService();
+    console.log('JSON Database initialized successfully');
     return true;
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('Failed to initialize JSON database:', error);
     dialog.showErrorBox('Database Error', 'Failed to initialize database: ' + error.message);
     return false;
   }
