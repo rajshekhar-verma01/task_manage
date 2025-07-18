@@ -1,12 +1,16 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-const fs = require('fs');
+import Database from 'better-sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class DatabaseService {
   constructor() {
     try {
       // Get user data directory for database storage
-      const { app } = require('electron');
       const userDataPath = app.getPath('userData');
       
       // Ensure the directory exists
@@ -609,4 +613,4 @@ class DatabaseService {
   }
 }
 
-module.exports = DatabaseService;
+export default DatabaseService;

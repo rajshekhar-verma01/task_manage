@@ -1,71 +1,55 @@
 #!/usr/bin/env node
 
-// Simple alternative script that uses direct Node.js execution
-const { exec } = require('child_process');
-const http = require('http');
+// Simple Electron launcher for Windows that handles ES module requirements
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
-console.log('Starting Electron Task Management App (Simple Version)...');
+console.log('Starting Electron Task Management App...');
 
-// Check if server is running
-const checkServer = () => {
-  return new Promise((resolve) => {
-    const req = http.request({
-      hostname: 'localhost',
-      port: 5000,
-      method: 'GET',
-      timeout: 1000
-    }, (res) => {
-      resolve(true);
-    });
-    
-    req.on('error', () => resolve(false));
-    req.on('timeout', () => resolve(false));
-    req.end();
+// Check if we're in the right directory
+if (!fs.existsSync('main.js')) {
+  console.error('Error: main.js not found in current directory');
+  console.log('Make sure you are in the project root directory');
+  process.exit(1);
+}
+
+// Set environment for development
+process.env.NODE_ENV = 'development';
+
+const startElectron = () => {
+  console.log('Launching Electron application...');
+  
+  const electronProcess = spawn('npx', ['electron', 'main.js'], {
+    stdio: 'inherit',
+    shell: true,
+    env: {
+      ...process.env,
+      NODE_ENV: 'development'
+    }
   });
+  
+  electronProcess.on('error', (error) => {
+    console.error('Failed to start Electron:', error);
+    console.log('\nTroubleshooting:');
+    console.log('1. Make sure Electron is installed: npm install electron');
+    console.log('2. Try: npx electron main.js');
+    console.log('3. Check that your development server is running on port 5000');
+  });
+  
+  electronProcess.on('close', (code) => {
+    console.log(`Electron application closed (exit code: ${code})`);
+  });
+  
+  // Handle cleanup
+  const cleanup = () => {
+    console.log('\nShutting down...');
+    electronProcess.kill();
+    process.exit(0);
+  };
+  
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
 };
 
-// Main execution
-(async () => {
-  try {
-    const serverRunning = await checkServer();
-    
-    if (!serverRunning) {
-      console.log('Development server is not running.');
-      console.log('Please start the server first with: npm run dev');
-      console.log('Then run this script again, or use: npx electron .');
-      process.exit(1);
-    }
-    
-    console.log('Development server is running, starting Electron...');
-    
-    // Start Electron using exec instead of spawn
-    const electronProcess = exec('npx electron .', (error, stdout, stderr) => {
-      if (error) {
-        console.error('Error starting Electron:', error);
-        return;
-      }
-      if (stderr) {
-        console.error('Electron stderr:', stderr);
-      }
-      if (stdout) {
-        console.log('Electron stdout:', stdout);
-      }
-    });
-    
-    electronProcess.on('exit', (code) => {
-      console.log(`Electron process exited with code ${code}`);
-      process.exit(code);
-    });
-    
-    // Handle cleanup
-    process.on('SIGINT', () => {
-      console.log('\nShutting down Electron...');
-      electronProcess.kill();
-      process.exit(0);
-    });
-    
-  } catch (error) {
-    console.error('Error:', error);
-    process.exit(1);
-  }
-})();
+startElectron();

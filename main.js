@@ -1,7 +1,11 @@
-const { app, BrowserWindow, ipcMain, Notification, dialog } = require('electron');
-const path = require('path');
+import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import DatabaseService from './client/src/services/database-electron.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === 'development';
-const DatabaseService = require('./client/src/services/database-electron.js');
 
 let mainWindow;
 let db;
