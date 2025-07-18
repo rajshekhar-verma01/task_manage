@@ -1,0 +1,16 @@
+{
+  "name": "task-management-desktop-app",
+  "version": "1.0.0",
+  "main": "main-electron.cjs",
+  "description": "Task Management Desktop Application for Windows",
+  "author": "Task Manager User",
+  "license": "MIT",
+  "scripts": {
+    "electron": "electron .",
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron ."
+  },
+  "dependencies": {
+    "electron": "^37.2.3"
+  }
+}
