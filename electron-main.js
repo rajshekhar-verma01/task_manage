@@ -35,22 +35,67 @@ function createWindow() {
       contextIsolation: true,
       enableRemoteModule: false,
       preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false, // Allow localhost connections in development
+      allowRunningInsecureContent: true, // Allow HTTP in development
     },
     icon: path.join(__dirname, 'assets/icon.png'), // Add app icon if you have one
     titleBarStyle: 'default',
     show: false, // Don't show until ready
   });
 
-  // Load the appropriate URL/file
+  // Wait a moment for server to be ready, then load URL
   if (isDev) {
-    // Development: load from development server
-    console.log('Loading development server at http://localhost:5000');
-    mainWindow.loadURL('http://localhost:5000').catch(err => {
-      console.error('Failed to load URL:', err);
-      dialog.showErrorBox('Load Error', 'Failed to connect to development server on port 5000. Make sure the server is running.');
+    console.log('Waiting for development server to be ready...');
+    
+    // Function to check if server is ready
+    const checkServer = () => {
+      return new Promise((resolve) => {
+        const http = require('http');
+        const req = http.request({
+          hostname: 'localhost',
+          port: 5000,
+          method: 'GET',
+          timeout: 3000
+        }, (res) => {
+          resolve(res.statusCode === 200);
+        });
+        
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => resolve(false));
+        req.end();
+      });
+    };
+    
+    // Wait for server to be ready with retries
+    const waitForServer = async (retries = 10) => {
+      for (let i = 0; i < retries; i++) {
+        const isReady = await checkServer();
+        if (isReady) {
+          console.log('✓ Development server is ready, loading URL...');
+          await mainWindow.loadURL('http://localhost:5000');
+          return true;
+        }
+        console.log(`Waiting for server... (${i + 1}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+      
+      console.error('✗ Development server not responding after retries');
+      dialog.showErrorBox('Server Connection Error', 
+        'Could not connect to development server on port 5000.\n\n' +
+        'Please ensure the server is running by executing:\nnpm run dev'
+      );
+      return false;
+    };
+    
+    // Wait for server and load URL
+    waitForServer().then(success => {
+      if (success) {
+        console.log('Successfully loaded development server');
+        // Open DevTools after successful load
+        mainWindow.webContents.openDevTools();
+      }
     });
-    // Open DevTools in development for debugging
-    mainWindow.webContents.openDevTools();
+    
   } else {
     // Production: load from built files
     mainWindow.loadFile(path.join(__dirname, 'dist/public/index.html'));
