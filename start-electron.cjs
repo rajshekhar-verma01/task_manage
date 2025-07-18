@@ -35,7 +35,21 @@ const checkServer = () => {
 const startServer = () => {
   return new Promise((resolve) => {
     console.log('Starting development server...');
-    const server = spawn('npm', ['run', 'dev'], { stdio: 'inherit' });
+    
+    // Use cross-platform npm command
+    const isWindows = process.platform === 'win32';
+    const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+    
+    const server = spawn(npmCmd, ['run', 'dev'], { 
+      stdio: 'inherit',
+      shell: true
+    });
+    
+    server.on('error', (error) => {
+      console.error('Failed to start server:', error);
+      console.log('Please ensure npm is installed and in your PATH');
+      process.exit(1);
+    });
     
     // Wait for server to be ready
     const checkInterval = setInterval(async () => {
@@ -50,7 +64,21 @@ const startServer = () => {
 // Start Electron
 const startElectron = () => {
   console.log('Starting Electron application...');
-  const electron = spawn('npx', ['electron', '.'], { stdio: 'inherit' });
+  
+  // Use cross-platform npx command
+  const isWindows = process.platform === 'win32';
+  const npxCmd = isWindows ? 'npx.cmd' : 'npx';
+  
+  const electron = spawn(npxCmd, ['electron', '.'], { 
+    stdio: 'inherit',
+    shell: true
+  });
+  
+  electron.on('error', (error) => {
+    console.error('Failed to start Electron:', error);
+    console.log('Please ensure Electron is installed. Try running: npm install electron');
+    process.exit(1);
+  });
   
   electron.on('close', (code) => {
     console.log(`Electron process exited with code ${code}`);
