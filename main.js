@@ -1,10 +1,7 @@
-import { app, BrowserWindow, ipcMain, Notification, dialog } from 'electron';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import DatabaseService from './src/services/database-electron.js';
+const { app, BrowserWindow, ipcMain, Notification, dialog } = require('electron');
+const path = require('path');
+const fs = require('fs');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow;
@@ -13,6 +10,8 @@ let db;
 // Initialize database after app is ready
 async function initializeDatabase() {
   try {
+    // Use require for CommonJS compatibility
+    const DatabaseService = require('./src/services/database-electron.cjs');
     db = new DatabaseService();
     console.log('✓ Database service initialized successfully');
     
