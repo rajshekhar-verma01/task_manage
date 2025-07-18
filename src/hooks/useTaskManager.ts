@@ -45,11 +45,17 @@ export const useTaskManager = () => {
 
   // Load data from localStorage on mount
   useEffect(() => {
-    if (window.electronAPI && window.electronAPI.db) {
-      loadFromDatabase();
-    } else {
-      loadFromLocalStorage();
-    }
+    const initializeData = async () => {
+      if (window.electronAPI && window.electronAPI.db) {
+        console.log('Loading data from SQLite database...');
+        await loadFromDatabase();
+      } else {
+        console.log('Loading data from localStorage...');
+        loadFromLocalStorage();
+      }
+    };
+    
+    initializeData();
   }, []);
 
   // Helper function to ensure safe data structure
@@ -119,13 +125,16 @@ export const useTaskManager = () => {
   };
   const loadFromDatabase = async () => {
     try {
+      console.log('Starting database load...');
       const sections = ['household', 'personal', 'official', 'blog'];
       const loadedData = ensureSafeTaskData({});
 
       for (const sectionId of sections) {
+        console.log(`Loading data for section: ${sectionId}`);
         if (sectionId === 'blog') {
           const entries = await window.electronAPI.db.getBlogEntries();
           const categories = await window.electronAPI.db.getCategories(sectionId);
+          console.log(`Blog: ${entries.length} entries, ${categories.length} categories`);
           loadedData.blog = {
             ...loadedData.blog,
             entries: Array.isArray(entries) ? entries : [],
@@ -135,6 +144,7 @@ export const useTaskManager = () => {
           const sectionTasks = await window.electronAPI.db.getTasks(sectionId);
           const recurringTasks = await window.electronAPI.db.getRecurringTasks(sectionId);
           const categories = await window.electronAPI.db.getCategories(sectionId);
+          console.log(`${sectionId}: ${sectionTasks.length} tasks, ${recurringTasks.length} recurring, ${categories.length} categories`);
           
           loadedData[sectionId as keyof TaskData] = {
             ...loadedData[sectionId as keyof TaskData],
@@ -146,6 +156,7 @@ export const useTaskManager = () => {
       }
 
       setTasks(loadedData);
+      console.log('Database load completed successfully');
       
       // Update recurring task statuses after loading from database
       setTimeout(() => {
@@ -255,7 +266,8 @@ export const useTaskManager = () => {
 
   const updateTaskInDatabase = async (sectionId: string, task: Task | PersonalDevelopmentTask) => {
     try {
-      await window.electronAPI.db.saveTask(task, sectionId);
+      const result = await window.electronAPI.db.saveTask(task, sectionId);
+      console.log('Task saved to database:', result);
       updateTaskInMemory(sectionId, task);
     } catch (error) {
       console.error('Error saving task to database:', error);
@@ -301,7 +313,8 @@ export const useTaskManager = () => {
 
   const updateRecurringTaskInDatabase = async (sectionId: string, task: RecurringTask) => {
     try {
-      await window.electronAPI.db.saveRecurringTask(task, sectionId);
+      const result = await window.electronAPI.db.saveRecurringTask(task, sectionId);
+      console.log('Recurring task saved to database:', result);
       updateRecurringTaskInMemory(sectionId, task);
     } catch (error) {
       console.error('Error saving recurring task to database:', error);
@@ -347,7 +360,8 @@ export const useTaskManager = () => {
 
   const updateTaskStatusInDatabase = async (sectionId: string, taskId: string, status: 'todo' | 'in-progress' | 'completed') => {
     try {
-      await window.electronAPI.db.updateTaskStatus(taskId, status);
+      const result = await window.electronAPI.db.updateTaskStatus(taskId, status);
+      console.log('Task status updated in database:', result);
       updateTaskStatusInMemory(sectionId, taskId, status);
     } catch (error) {
       console.error('Error updating task status in database:', error);
@@ -430,7 +444,8 @@ export const useTaskManager = () => {
 
   const updateBlogEntryInDatabase = async (entry: BlogEntry) => {
     try {
-      await window.electronAPI.db.saveBlogEntry(entry);
+      const result = await window.electronAPI.db.saveBlogEntry(entry);
+      console.log('Blog entry saved to database:', result);
       updateBlogEntryInMemory(entry);
     } catch (error) {
       console.error('Error saving blog entry to database:', error);

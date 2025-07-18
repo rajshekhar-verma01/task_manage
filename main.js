@@ -3,13 +3,23 @@ const { Notification, ipcMain, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
-const DatabaseService = require('./src/services/database-electron.js');
 
-// Initialize database
-let dbService;
+// Database service
+let dbService = null;
 
-// Initialize database
-let dbService;
+// Try to initialize database
+const initializeDatabase = () => {
+  try {
+    const DatabaseService = require('./src/services/database-electron.js');
+    dbService = new DatabaseService();
+    console.log('Database service initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize database service:', error);
+    dbService = null;
+    return false;
+  }
+};
 
 // Enhanced notification manager
 class NotificationManager extends EventEmitter {
@@ -384,19 +394,9 @@ function createWindow() {
   console.log('Creating Electron window...');
   console.log('Development mode:', isDev);
   
-  // Initialize database
-  if (DatabaseService) {
-    try {
-      dbService = new DatabaseService();
-      console.log('Database initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize database:', error);
-      dbService = null;
-    }
-  } else {
-    console.log('Database service not available, using fallback storage');
-    dbService = null;
-  }
+  // Initialize database service
+  const dbInitialized = initializeDatabase();
+  console.log('Database initialization:', dbInitialized ? 'SUCCESS' : 'FAILED - using localStorage fallback');
   
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -541,119 +541,204 @@ ipcMain.handle('show-notification', (event, { title, body, tasks }) => {
 // Database IPC handlers
 ipcMain.handle('db-save-task', (event, task, sectionId) => {
   if (dbService) {
-    return dbService.saveTask(task, sectionId);
+    try {
+      return dbService.saveTask(task, sectionId);
+    } catch (error) {
+      console.error('Error in db-save-task:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-get-tasks', (event, sectionId) => {
   if (dbService) {
-    return dbService.getTasks(sectionId);
+    try {
+      return dbService.getTasks(sectionId);
+    } catch (error) {
+      console.error('Error in db-get-tasks:', error);
+      return [];
+    }
   }
   return [];
 });
 
 ipcMain.handle('db-save-recurring-task', (event, task, sectionId) => {
   if (dbService) {
-    return dbService.saveRecurringTask(task, sectionId);
+    try {
+      return dbService.saveRecurringTask(task, sectionId);
+    } catch (error) {
+      console.error('Error in db-save-recurring-task:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-get-recurring-tasks', (event, sectionId) => {
   if (dbService) {
-    return dbService.getRecurringTasks(sectionId);
+    try {
+      return dbService.getRecurringTasks(sectionId);
+    } catch (error) {
+      console.error('Error in db-get-recurring-tasks:', error);
+      return [];
+    }
   }
   return [];
 });
 
 ipcMain.handle('db-save-blog-entry', (event, entry) => {
   if (dbService) {
-    return dbService.saveBlogEntry(entry);
+    try {
+      return dbService.saveBlogEntry(entry);
+    } catch (error) {
+      console.error('Error in db-save-blog-entry:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-get-blog-entries', () => {
   if (dbService) {
-    return dbService.getBlogEntries();
+    try {
+      return dbService.getBlogEntries();
+    } catch (error) {
+      console.error('Error in db-get-blog-entries:', error);
+      return [];
+    }
   }
   return [];
 });
 
 ipcMain.handle('db-get-categories', (event, sectionId) => {
   if (dbService) {
-    return dbService.getCategories(sectionId);
+    try {
+      return dbService.getCategories(sectionId);
+    } catch (error) {
+      console.error('Error in db-get-categories:', error);
+      return [];
+    }
   }
   return [];
 });
 
 ipcMain.handle('db-add-category', (event, sectionId, categoryName) => {
   if (dbService) {
-    return dbService.addCategory(sectionId, categoryName);
+    try {
+      return dbService.addCategory(sectionId, categoryName);
+    } catch (error) {
+      console.error('Error in db-add-category:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-remove-category', (event, sectionId, categoryName) => {
   if (dbService) {
-    return dbService.removeCategory(sectionId, categoryName);
+    try {
+      return dbService.removeCategory(sectionId, categoryName);
+    } catch (error) {
+      console.error('Error in db-remove-category:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-update-task-status', (event, taskId, status) => {
   if (dbService) {
-    return dbService.updateTaskStatus(taskId, status);
+    try {
+      return dbService.updateTaskStatus(taskId, status);
+    } catch (error) {
+      console.error('Error in db-update-task-status:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-update-recurring-task-status', (event, taskId, status) => {
   if (dbService) {
-    return dbService.updateRecurringTaskStatus(taskId, status);
+    try {
+      return dbService.updateRecurringTaskStatus(taskId, status);
+    } catch (error) {
+      console.error('Error in db-update-recurring-task-status:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-update-blog-entry-status', (event, entryId, status) => {
   if (dbService) {
-    return dbService.updateBlogEntryStatus(entryId, status);
+    try {
+      return dbService.updateBlogEntryStatus(entryId, status);
+    } catch (error) {
+      console.error('Error in db-update-blog-entry-status:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-update-subgoal-status', (event, subGoalId, status) => {
   if (dbService) {
-    return dbService.updateSubGoalStatus(subGoalId, status);
+    try {
+      return dbService.updateSubGoalStatus(subGoalId, status);
+    } catch (error) {
+      console.error('Error in db-update-subgoal-status:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-delete-task', (event, taskId) => {
   if (dbService) {
-    return dbService.deleteTask(taskId);
+    try {
+      return dbService.deleteTask(taskId);
+    } catch (error) {
+      console.error('Error in db-delete-task:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-delete-recurring-task', (event, taskId) => {
   if (dbService) {
-    return dbService.deleteRecurringTask(taskId);
+    try {
+      return dbService.deleteRecurringTask(taskId);
+    } catch (error) {
+      console.error('Error in db-delete-recurring-task:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-delete-blog-entry', (event, entryId) => {
   if (dbService) {
-    return dbService.deleteBlogEntry(entryId);
+    try {
+      return dbService.deleteBlogEntry(entryId);
+    } catch (error) {
+      console.error('Error in db-delete-blog-entry:', error);
+      return { success: false, error: error.message };
+    }
   }
   return { success: false, error: 'Database not initialized' };
 });
 
 ipcMain.handle('db-get-section-data', (event, sectionId) => {
   if (dbService) {
-    return dbService.getSectionData(sectionId);
+    try {
+      return dbService.getSectionData(sectionId);
+    } catch (error) {
+      console.error('Error in db-get-section-data:', error);
+      return null;
+    }
   }
   return null;
 });
