@@ -1,15 +1,20 @@
 #!/bin/bash
 
-echo "Starting Electron Task Management App..."
+# Electron launcher script for Windows/Linux compatibility
+echo "Starting Task Management Desktop Application..."
 
-# Check if server is running
-echo "Checking if development server is running..."
-if ! curl -s http://localhost:5000 > /dev/null 2>&1; then
-    echo "Development server is not running."
-    echo "Please start the server first with: npm run dev"
-    echo "Then run this script again."
-    exit 1
+# Check if we're in the right directory
+if [ ! -f "electron-main.js" ]; then
+  echo "Error: electron-main.js not found"
+  echo "Make sure you are in the project root directory"
+  exit 1
 fi
 
-echo "Development server is running, starting Electron..."
-npx electron .
+# Set environment
+export NODE_ENV=development
+
+# Start Electron with the correct entry point
+echo "Launching Electron..."
+npx electron electron-main.js
+
+echo "Application closed."

@@ -1,18 +1,20 @@
 @echo off
-echo Starting Electron Task Management App...
+echo Starting Task Management Desktop Application...
 
-REM Check if server is running
-echo Checking if development server is running...
-curl -s http://localhost:5000 >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Development server is not running.
-    echo Please start the server first with: npm run dev
-    echo Then run this script again.
-    pause
-    exit /b 1
+REM Check if we're in the right directory
+if not exist "electron-main.js" (
+  echo Error: electron-main.js not found
+  echo Make sure you are in the project root directory
+  pause
+  exit /b 1
 )
 
-echo Development server is running, starting Electron...
-npx electron .
+REM Set environment
+set NODE_ENV=development
 
+REM Start Electron with the correct entry point
+echo Launching Electron...
+npx electron electron-main.js
+
+echo Application closed.
 pause

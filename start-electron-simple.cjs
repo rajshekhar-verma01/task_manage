@@ -20,7 +20,8 @@ process.env.NODE_ENV = 'development';
 const startElectron = () => {
   console.log('Launching Electron application...');
   
-  const electronProcess = spawn('npx', ['electron', 'main.js'], {
+  // Try multiple methods to start Electron
+  const electronProcess = spawn('npx', ['electron', '--package-json=electron.json', 'electron-main.js'], {
     stdio: 'inherit',
     shell: true,
     env: {
