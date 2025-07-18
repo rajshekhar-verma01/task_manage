@@ -10,7 +10,16 @@ let db;
 // Initialize database
 function initializeDatabase() {
   try {
-    const DatabaseService = require('./src/services/database-electron.cjs');
+    // Use absolute path to avoid module resolution issues
+    const dbPath = path.join(__dirname, 'src', 'services', 'database-electron.cjs');
+    console.log('Loading database from:', dbPath);
+    
+    if (!fs.existsSync(dbPath)) {
+      console.error('Database service file not found at:', dbPath);
+      return false;
+    }
+    
+    const DatabaseService = require(dbPath);
     db = new DatabaseService();
     console.log('✓ Database service initialized successfully');
     
@@ -21,6 +30,7 @@ function initializeDatabase() {
     return true;
   } catch (error) {
     console.error('Failed to initialize database:', error);
+    console.log('Error details:', error.message);
     console.log('Will continue without database - using localStorage fallback');
     return false;
   }

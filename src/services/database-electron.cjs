@@ -1,16 +1,18 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 class DatabaseService {
   constructor() {
     try {
-      // Use local data directory for development
-      const dataPath = path.join(process.cwd(), 'data');
+      // Use a reliable data directory that always exists
+      const dataPath = path.join(os.homedir(), '.task-management-app', 'data');
       
       // Ensure the directory exists
       if (!fs.existsSync(dataPath)) {
         fs.mkdirSync(dataPath, { recursive: true });
+        console.log('Created data directory:', dataPath);
       }
       
       const dbPath = path.join(dataPath, 'taskflow.db');
@@ -124,19 +126,25 @@ class DatabaseService {
       { section: 'blog', categories: ['Writing', 'Research', 'Editing', 'Publishing', 'Marketing'] },
     ];
 
-    const insertCategory = this.db.prepare(`
-      INSERT OR IGNORE INTO categories (name, section_id) VALUES (?, ?)
-    `);
+    try {
+      const insertCategory = this.db.prepare(`
+        INSERT OR IGNORE INTO categories (name, section_id) VALUES (?, ?)
+      `);
 
-    defaultCategories.forEach(({ section, categories }) => {
-      categories.forEach(category => {
-        try {
-          insertCategory.run(category, section);
-        } catch (error) {
-          console.error(`Error inserting category ${category} for section ${section}:`, error);
-        }
+      defaultCategories.forEach(({ section, categories }) => {
+        categories.forEach(category => {
+          try {
+            insertCategory.run(category, section);
+          } catch (error) {
+            console.error(`Error inserting category ${category} for section ${section}:`, error);
+          }
+        });
       });
-    });
+      
+      console.log('Default categories initialized');
+    } catch (error) {
+      console.error('Error initializing default categories:', error);
+    }
   }
 
   // Task operations
