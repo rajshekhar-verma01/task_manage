@@ -761,15 +761,6 @@ ipcMain.handle('trigger-notification-check', () => {
   return { success: true };
 });
 
-// Handle task data updates for notification intervals
-ipcMain.handle('update-notification-intervals', (event, allTasks) => {
-  console.log('Received task data update for notification intervals');
-  const settings = loadNotificationSettings();
-  console.log('Loaded notification settings:', settings);
-  setupNotificationIntervals(settings, allTasks);
-  return { success: true };
-});
-
 ipcMain.handle('show-due-tasks-popup', (event, dueTasks) => {
   if (dueTasks && dueTasks.length > 0) {
     // Show notification for due tasks
